@@ -8,8 +8,8 @@ import VueApollo from 'vue-apollo';
 
 Vue.config.productionTip = false;
 
-Vue.prototype.$apiUrl = `http://192.168.86.89:8443/`;
-Vue.prototype.$frontUrl = `http://192.168.86.89:8080/`;
+Vue.prototype.$apiUrl = process.env.API_URL ?? `http://192.168.86.89:8443/`;
+Vue.prototype.$frontUrl = process.env.FRONT_URL ??`https://localhost:8081`;
 
 Vue.use(VueApollo);
 
