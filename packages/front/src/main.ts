@@ -8,8 +8,8 @@ import VueApollo from 'vue-apollo';
 
 Vue.config.productionTip = false;
 
-Vue.prototype.$apiUrl = process.env.API_URL ?? `http://192.168.86.89:8443/`;
-Vue.prototype.$frontUrl = process.env.FRONT_URL ??`https://localhost:8081`;
+Vue.prototype.$apiUrl = `https://upnext-server.onrender.com/`;
+Vue.prototype.$frontUrl = `https://upnext.cool`;
 
 Vue.use(VueApollo);
 
