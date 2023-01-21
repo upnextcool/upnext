@@ -7,7 +7,7 @@ import { WebSocketLink } from 'apollo-link-ws';
 import { getMainDefinition } from 'apollo-utilities';
 import { InMemoryCache } from 'apollo-cache-inmemory';
 
-const serviceUrl = 'http://192.168.86.89:8443/graphql';
+const serviceUrl = 'https://upnext-server.onrender.com/graphql';
 
 const httpLink = new HttpLink({
   uri: serviceUrl,
