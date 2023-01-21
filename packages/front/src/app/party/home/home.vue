@@ -4,14 +4,6 @@
     <v-container v-if="partyState" fluid class="fill-height">
       <v-col cols="12">
         <v-row align="center" justify="center">
-          <!--          <v-card width="80vw" class="mb-2" elevation="0" color="transparent">-->
-          <!--            <div style="display: flex; flex-direction: row">-->
-          <!--              <h1 class="text-overline">Added by: &nbsp;</h1>-->
-          <!--              <h1 class="text-overline ellipsis">Ethan</h1>-->
-          <!--              <v-spacer></v-spacer>-->
-          <!--              <v-btn icon><v-icon>mdi-spotify</v-icon></v-btn>-->
-          <!--            </div>-->
-          <!--          </v-card>-->
           <v-responsive
             max-height="80vw"
             max-width="80vw"

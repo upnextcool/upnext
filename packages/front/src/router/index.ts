@@ -17,8 +17,8 @@ const routes: Array<RouteConfig> = [
         component: () => import('../app/landing/new/new.vue'),
       },
       {
-        path: 'nickname',
-        component: () => import('../app/landing/nickname/nickname.vue'),
+        path: 'join',
+        component: () => import('../app/landing/join/join.vue'),
       },
       {
         path: 'logout',

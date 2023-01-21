@@ -27,7 +27,7 @@ export default {
   name: "app-bottom-nav",
   computed: {
     shown() {
-      return this.$route.path !== "/party/cast";
+      return !this.$route.path.includes("/party/cast");
     },
     background() {
       return this.$route.path === "/party" ? "transparent" : "black";

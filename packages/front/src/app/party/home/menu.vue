@@ -30,26 +30,6 @@
             <v-list-item-title>Share party link</v-list-item-title>
           </v-list-item-content>
         </v-list-item>
-        <v-dialog max-width="400">
-          <template v-slot:activator="{ on, attrs }">
-            <v-list-item v-on="on" v-bind="attrs">
-              <v-list-item-icon>
-                <v-icon>mdi-qrcode</v-icon>
-              </v-list-item-icon>
-              <v-list-item-content>
-                <v-list-item-title>Show party QR code</v-list-item-title>
-              </v-list-item-content>
-            </v-list-item>
-          </template>
-          <v-card
-            ><v-img
-              :src="`${$apiUrl}/party/qr.png?code=${party.code}&back=${qrBack}&front=${qrFront}`"
-              alt="qrcode"
-              class="elevation-0"
-              max-width="400"
-            ></v-img
-          ></v-card>
-        </v-dialog>
         <v-list-item to="/party/users">
           <v-list-item-icon>
             <v-icon>mdi-account-group</v-icon>
@@ -78,8 +58,6 @@ export default {
   data: () => ({
     sheet: false,
     party: null,
-    qrBack: "ffffff",
-    qrFront: "000000",
   }),
   methods: {
     async share() {

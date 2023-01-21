@@ -42,7 +42,7 @@
 <script lang="ts">
 import Vue from 'vue';
 import CodeInput from './code-input/code-input.vue';
-import {PARTY_BY_CODE} from "../../../graphql";
+import {PARTY_BY_CODE} from '../../../graphql';
 
 export default Vue.extend({
   name: 'unc-landing-home',
@@ -63,7 +63,7 @@ export default Vue.extend({
           },
         })
         .then(() => {
-          this.$router.push(`/nickname?code=${code}`);
+          this.$router.push(`/join?code=${code}`);
         })
         .catch((err) => {
           console.log(JSON.stringify(err));
