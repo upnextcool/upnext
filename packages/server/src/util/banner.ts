@@ -13,7 +13,7 @@ import * as Resolvers from '../api/resolvers';
 import * as Services from '../api/services';
 
 export const banner = (log: Logger): void => {
-  const route = () => `${environment.app.schema}://${environment.app.host}:${environment.app.port}/`;
+  const route = () => `${environment.app.publicUrl}/`;
   log.info('-------------------------------------------------------------------------------------------------');
   log.info('');
   log.info(`${environment.app.name}`);

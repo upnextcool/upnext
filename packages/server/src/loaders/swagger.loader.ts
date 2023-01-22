@@ -14,9 +14,7 @@ export const SwaggerLoader: MicroframeworkLoader = (settings: MicroframeworkSett
   const log = Logger.for(
     __filename, [ 'SWAGGER' ]
   );
-  const DEFAULT_PUBLIC_PORT = 80;
-  const port = environment.app.port===DEFAULT_PUBLIC_PORT ? '':`:${environment.app.port}`;
-  const url = `${environment.app.schema}://${environment.app.host}${port}`;
+  const url = `${environment.app.publicUrl}`;
 
   if (settings && environment.swagger.enabled) {
     log.info('Loading Swagger');

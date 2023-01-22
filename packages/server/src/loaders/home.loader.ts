@@ -13,7 +13,7 @@ export const HomeLoader: MicroframeworkLoader = (settings: MicroframeworkSetting
   );
 
   if (settings) {
-    const url = `${environment.app.schema}://${environment.app.host}:${environment.app.port}`;
+    const url = `${environment.app.publicUrl}`;
     log.info('Loading API Root');
     const expressApp = settings.getData('express_app');
     expressApp.get(
