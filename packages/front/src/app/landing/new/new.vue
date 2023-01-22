@@ -24,31 +24,34 @@
         ></v-progress-circular>
       </v-overlay>
       <v-container class="pt-10" fluid>
-        <p class="blurb">
-          Give your party a name to get started!
-        </p>
-        <div class="nickname-input">
-          <v-form @submit.prevent="join" autocomplete="off" v-model="valid">
-            <v-text-field
-              autofocus
-              maxlength="20"
-              label="Party Name"
-              outlined
-              v-model="partyName"
-              :rules="[rules.required, rules.limit, rules.minimum]"
-            ></v-text-field>
-            <v-btn
-              block
-              tile
-              color="primary"
-              x-large
-              @click="join"
-              :disabled="!valid"
-            >
-              Start the party
-            </v-btn>
-          </v-form>
+        <div class="wrapper">
+          <p class="blurb">
+            Give your party a name to get started!
+          </p>
+          <div class="nickname-input">
+            <v-form @submit.prevent="join" autocomplete="off" v-model="valid">
+              <v-text-field
+                autofocus
+                maxlength="20"
+                label="Party Name"
+                outlined
+                v-model="partyName"
+                :rules="[rules.required, rules.limit, rules.minimum]"
+              ></v-text-field>
+              <v-btn
+                block
+                tile
+                color="primary"
+                x-large
+                @click="join"
+                :disabled="!valid"
+              >
+                Start the party
+              </v-btn>
+            </v-form>
+          </div>
         </div>
+
       </v-container>
     </template>
   </v-navigation-drawer>
@@ -100,6 +103,11 @@ export default Vue.extend({
 </script>
 
 <style lang="scss">
+.wrapper {
+  max-width: 500px;
+  margin-inline: auto;
+}
+
 .blurb {
   margin-inline: 1rem;
 }

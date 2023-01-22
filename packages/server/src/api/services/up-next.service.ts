@@ -177,13 +177,13 @@ export class UpNextService {
     party: Party,
     member: Member,
     songId: string
-  ): Promise<void> {
+  ): Promise<PlaylistEntry> {
     const spotifyAccount = await this._partyService.getSpotifyAccountFor(party);
     const x = await this._spotifyService.spotifyApis.tracks.getTrack(
       spotifyAccount.token,
       songId
     );
-    await this._playlistEntryService.newEntry({
+    return await this._playlistEntryService.newEntry({
       addedBy: member,
       albumArtwork: x.album.images[0].url,
       artist: x.artists.map((m) => m.name).join(', '),

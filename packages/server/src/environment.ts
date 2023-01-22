@@ -3,7 +3,6 @@
  */
 
 import dotenv from 'dotenv';
-import { readFileSync } from 'fs';
 import path from 'path';
 
 import { EnvironmentHelpers } from './util/environment-helpers';
@@ -24,6 +23,7 @@ export const environment = {
     port: EnvironmentHelpers.normalizePort(process.env.PORT || EnvironmentHelpers.getOsEnv('APP_PORT')),
     schema: EnvironmentHelpers.getOsEnv('APP_SCHEMA'),
     version: '0.0.1',
+    publicUrl: EnvironmentHelpers.getOsEnv('APP_PUBLIC_URL')
   },
   database: {
     database: EnvironmentHelpers.getOsEnv('DATABASE_DATABASE'),

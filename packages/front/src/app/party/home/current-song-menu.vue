@@ -21,7 +21,18 @@
           </v-list-item-content>
         </v-list-item>
         <v-divider></v-divider>
-        <v-bottom-sheet overlay-opacity="0.95">
+        <v-list-item
+          v-if="song.artists.length === 1"
+          :to="`/party/view/artist/${song.artists[0].id}`"
+        >
+          <v-list-item-icon>
+            <v-icon>mdi-account-music</v-icon>
+          </v-list-item-icon>
+          <v-list-item-content>
+            <v-list-item-title>View artist</v-list-item-title>
+          </v-list-item-content>
+        </v-list-item>
+        <v-bottom-sheet v-else overlay-opacity="0.95">
           <template v-slot:activator="{ on, attrs }">
             <v-list-item v-on="on" v-bind="attrs">
               <v-list-item-icon>
@@ -79,10 +90,10 @@
 </template>
 
 <script>
-import { SPOTIFY_SONG } from "../../../graphql";
+import { SPOTIFY_SONG } from '../../../graphql';
 
 export default {
-  name: "app-home-current-song-menu",
+  name: 'app-home-current-song-menu',
   props: {
     songId: String,
   },
@@ -103,7 +114,7 @@ export default {
       return this.song.album.images[0].url;
     },
     artists() {
-      return this.song.artists.map((e) => e.name).join(", ");
+      return this.song.artists.map((e) => e.name).join(', ');
     },
   },
   methods: {
@@ -119,8 +130,8 @@ export default {
     },
     async shareTrack() {
       const shareData = {
-        title: "Song",
-        text: "Check this song out!",
+        title: 'Song',
+        text: 'Check this song out!',
         url: `https://open.spotify.com/track/${this.songId}`,
       };
       await navigator.share(shareData);

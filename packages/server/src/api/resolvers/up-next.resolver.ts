@@ -8,7 +8,18 @@ import { AuthService, FullArtist, PartyService, UpNextService } from '../service
 import { Album, FeaturedPlaylists, Playlist as PlaylistObject, SearchResultAll, Track } from '../spotify';
 import { Context } from '../types';
 import GraphQLJSON from 'graphql-type-json';
-import { Arg, Authorized, Ctx, Mutation, Query, Resolver } from 'type-graphql';
+import {
+  Arg,
+  Authorized,
+  Ctx,
+  Mutation,
+  PubSub,
+  Query,
+  Resolver,
+  Subscription,
+  PubSubEngine,
+  Root
+} from 'type-graphql';
 import { Service } from 'typedi';
 
 @Service()
@@ -18,8 +29,9 @@ export class UpNextResolver {
   constructor(
     private readonly _upNextService: UpNextService,
     private readonly _authService: AuthService,
-    private readonly _partyService: PartyService,
-  ) {}
+    private readonly _partyService: PartyService
+  ) {
+  }
 
 
   @Mutation(() => String)
@@ -169,12 +181,16 @@ export class UpNextResolver {
   async addToQueue(
     @Ctx() context: Context,
     @Arg('songId') songId: string,
+    @PubSub() pubSub: PubSubEngine
   ): Promise<string> {
-    await this._upNextService.addToPlaylist(
+    const entry = await this._upNextService.addToPlaylist(
       context.party,
       context.member,
       songId
     );
+
+    await pubSub.publish('QUEUE_NEW_SONG', entry);
+
     return songId;
   }
 
@@ -183,11 +199,15 @@ export class UpNextResolver {
   async upvote(
     @Ctx() context: Context,
     @Arg('entryId') entryId: string,
+    @PubSub() pubSub: PubSubEngine
   ): Promise<PlaylistEntry> {
-    return this._upNextService.upvote(
+    const entry = await this._upNextService.upvote(
       context.member,
       entryId
-    );
+    )
+    await pubSub.publish('QUEUE_UPVOTE', entry);
+
+    return entry;
   }
 
   @Mutation(() => PlaylistEntry)
@@ -195,10 +215,53 @@ export class UpNextResolver {
   async downvote(
     @Ctx() context: Context,
     @Arg('entryId') entryId: string,
+    @PubSub() pubSub: PubSubEngine
   ): Promise<PlaylistEntry> {
-    return this._upNextService.downvote(
+    const entry = await this._upNextService.downvote(
       context.member,
       entryId
     );
+
+    await pubSub.publish('QUEUE_DOWNVOTE', entry);
+
+    return entry;
+  }
+
+  // Subscriptions
+  @Subscription({
+    topics: "QUEUE_NEW_SONG"
+  })
+  newSongInQueue(
+    @Root() entry: PlaylistEntry,
+  ): PlaylistEntry {
+    return entry;
+  }
+
+  @Subscription({
+    topics: "QUEUE_REMOVE_SONG"
+  })
+  removeSongFromQueue(
+    @Root() entry: PlaylistEntry,
+  ): PlaylistEntry {
+    return entry;
+  }
+
+
+  @Subscription({
+    topics: "QUEUE_UPVOTE"
+  })
+  queueUpvote(
+    @Root() entry: PlaylistEntry,
+  ): PlaylistEntry {
+    return entry;
+  }
+
+  @Subscription({
+    topics: "QUEUE_DOWNVOTE"
+  })
+  queueDownvote(
+    @Root() entry: PlaylistEntry,
+  ): PlaylistEntry {
+    return entry;
   }
 }

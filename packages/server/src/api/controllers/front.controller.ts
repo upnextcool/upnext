@@ -11,6 +11,8 @@ export class FrontController {
   async config(): Promise<Record<string, unknown>> {
     return {
       version: environment.front.version,
+      frontUrl: environment.front.url,
+      serverUrl: environment.app.publicUrl
     };
   }
 }

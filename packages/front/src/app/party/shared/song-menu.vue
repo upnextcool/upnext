@@ -16,12 +16,12 @@
               {{ songName }}
             </v-list-item-title>
             <v-list-item-subtitle class="text-caption font-weight-light">
-              {{ artists.map((m) => m.name).join(", ") }}
+              {{ artists.map((m) => m.name).join(', ') }}
             </v-list-item-subtitle>
           </v-list-item-content>
         </v-list-item>
         <v-divider></v-divider>
-        <v-list-item @click="addToQueue">
+        <v-list-item v-if="!noAdd" @click="addToQueue">
           <v-list-item-icon>
             <v-icon>mdi-playlist-plus</v-icon>
           </v-list-item-icon>
@@ -29,7 +29,18 @@
             <v-list-item-title>Add to queue</v-list-item-title>
           </v-list-item-content>
         </v-list-item>
-        <v-bottom-sheet overlay-opacity="0.95">
+        <v-list-item
+          v-if="artists.length === 1"
+          :to="`/party/view/artist/${artists[0].id}`"
+        >
+          <v-list-item-icon>
+            <v-icon>mdi-account-music</v-icon>
+          </v-list-item-icon>
+          <v-list-item-content>
+            <v-list-item-title>View artist</v-list-item-title>
+          </v-list-item-content>
+        </v-list-item>
+        <v-bottom-sheet v-else overlay-opacity="0.95">
           <template v-slot:activator="{ on, attrs }">
             <v-list-item v-on="on" v-bind="attrs">
               <v-list-item-icon>
@@ -87,16 +98,17 @@
 </template>
 
 <script>
-import { ADD_TO_QUEUE } from "../../../graphql";
+import { ADD_TO_QUEUE } from '../../../graphql';
 
 export default {
-  name: "app-song-menu",
+  name: 'app-song-menu',
   props: {
     songId: String,
     songName: String,
     songArtwork: String,
     artists: Array,
     albumId: String,
+    noAdd: Boolean
   },
   data: () => ({
     sheet: false,
@@ -113,8 +125,8 @@ export default {
     },
     async shareTrack() {
       const shareData = {
-        title: "Song",
-        text: "Check this song out!",
+        title: 'Song',
+        text: 'Check this song out!',
         url: `https://open.spotify.com/track/${this.songId}`,
       };
       await navigator.share(shareData);

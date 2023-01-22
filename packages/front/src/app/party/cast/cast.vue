@@ -7,6 +7,7 @@
       permanent
       width="100%"
       touchless
+      v-if="partyState"
     >
       <template v-slot:prepend>
         <v-toolbar class="elevation-0" color="transparent" height="90" fixed>
@@ -69,12 +70,30 @@
             <div class="queue-wrapper pt-10">
               <div class="queue-content">
                 <h1 class="text-h6 font-weight-light ellipsis">Queue</h1>
-                <v-sheet v-if="sortedQueue.length === 0" class="text-center my-16" elevation="0" color="transparent">
-                  <v-icon size="120">mdi-emoticon-sad-outline</v-icon>
-                  <h1 class="text-h4 font-weight-light my-3">Queue is Empty</h1>
-                  <h1 class="text-h6 font-weight-light my-3">Add some songs to the queue!</h1>
+                <v-sheet
+                  v-if="queue === null"
+                  class="text-center my-16"
+                  elevation="0"
+                  color="transparent"
+                >
+                  <v-progress-circular
+                    indeterminate
+                    size="150"
+                    color="primary"
+                  ></v-progress-circular>
                 </v-sheet>
-                <v-list color="transparent">
+                <v-sheet
+                  v-else-if="sortedQueue.length === 0"
+                  class="text-center my-16"
+                  elevation="0"
+                  color="transparent"
+                >
+                  <h1 class="text-h4 font-weight-light my-3">Queue is Empty</h1>
+                  <h1 class="text-h6 font-weight-light my-3">
+                    Add some songs to the queue!
+                  </h1>
+                </v-sheet>
+                <v-list v-else color="transparent">
                   <template v-for="(item, index) in sortedQueue">
                     <v-list-item three-line :key="item.id">
                       <v-list-item-avatar tile>
@@ -95,7 +114,10 @@
                         {{ processVotes(item.votes) }}
                       </v-list-item-action>
                     </v-list-item>
-                    <v-divider v-if="index < sortedQueue.length - 1" :key="item.id + 'l'"></v-divider>
+                    <v-divider
+                      v-if="index < sortedQueue.length - 1"
+                      :key="item.id + 'l'"
+                    ></v-divider>
                   </template>
                 </v-list>
               </div>
@@ -125,7 +147,16 @@
 
 <script>
 import Vue from 'vue';
-import {GET_PARTY_STATE, PARTY, QUEUE, USERS_AT_PARTY,} from '../../../graphql';
+import {
+  GET_PARTY_STATE,
+  NEW_SONG_IN_QUEUE,
+  PARTY,
+  QUEUE,
+  QUEUE_DOWNVOTE,
+  QUEUE_UPVOTE,
+  REMOVE_SONG_FROM_QUEUE,
+  USERS_AT_PARTY,
+} from '../../../graphql';
 import * as dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -170,6 +201,7 @@ export default Vue.extend({
     progressInterval: null,
     projectedTime: 0,
     previousTime: null,
+    queue: null,
   }),
   watch: {
     progressTime(val) {
@@ -186,6 +218,15 @@ export default Vue.extend({
       this.previousTime = val;
     },
   },
+  created() {
+    this.$watch(
+      () => this.$route.params,
+      () => {
+        this.updateQueue();
+      },
+      { immediate: true }
+    );
+  },
   methods: {
     format(date) {
       return dayjs(date).fromNow(true);
@@ -194,6 +235,16 @@ export default Vue.extend({
       return votes
         .map((e) => (e.type === 'UP_VOTE' ? 1 : -1))
         .reduce((p, c) => p + c, 0);
+    },
+    async updateQueue() {
+      this.queue = null;
+
+      const { data } = await this.$apollo.query({
+        query: QUEUE,
+        fetchPolicy: 'no-cache',
+      });
+
+      this.queue = data.queue;
     },
   },
   computed: {
@@ -232,9 +283,10 @@ export default Vue.extend({
       return (this.members ?? []).sort((a, b) => a.score - b.score);
     },
     sortedQueue() {
-      return (this.queue ?? [])
+      return this.queue
         .map((q) => ({ ...q, score: this.processVotes(q.votes) }))
-        .sort((a, b) => b.score - a.score).slice(0, 10);
+        .sort((a, b) => dayjs(a).diff(dayjs(b)))
+        .sort((a, b) => b.score - a.score);
     },
   },
   apollo: {
@@ -247,9 +299,39 @@ export default Vue.extend({
       query: GET_PARTY_STATE,
       pollInterval: 1000,
     },
-    queue: {
-      query: QUEUE,
-      pollInterval: 500,
+    $subscribe: {
+      newSong: {
+        query: NEW_SONG_IN_QUEUE,
+        result({ data }) {
+          this.queue.push(data.newSongInQueue);
+        },
+      },
+      removeSong: {
+        query: REMOVE_SONG_FROM_QUEUE,
+        result({ data }) {
+          this.queue = this.queue.filter(
+            (q) => q.id !== data.removeSongFromQueue.id
+          );
+        },
+      },
+      upvote: {
+        query: QUEUE_UPVOTE,
+        result({ data }) {
+          const entryToUpdate = data.queueUpvote;
+          this.queue = this.queue.map((q) =>
+            q.id === entryToUpdate.id ? entryToUpdate : q
+          );
+        },
+      },
+      downvote: {
+        query: QUEUE_DOWNVOTE,
+        result({ data }) {
+          const entryToUpdate = data.queueDownvote;
+          this.queue = this.queue.map((q) =>
+            q.id === entryToUpdate.id ? entryToUpdate : q
+          );
+        },
+      },
     },
   },
 });

@@ -3,19 +3,30 @@ import App from './App.vue';
 import router from './router';
 import './registerServiceWorker';
 import vuetify from './plugins/vuetify';
-import { apolloProvider } from './plugins/apollo/apollo-provider';
+import { getProvider } from './plugins/apollo/apollo-provider';
 import VueApollo from 'vue-apollo';
+import axios from 'axios';
+import { Environment } from './environment';
 
 Vue.config.productionTip = false;
 
-Vue.prototype.$apiUrl = `https://upnext-server.onrender.com/`;
-Vue.prototype.$frontUrl = `https://upnext.cool`;
+const apiUrl =
+  process.env.NODE_ENV === 'production'
+    ? 'https://upnext-server.onrender.com'
+    : 'http://localhost:8443';
 
-Vue.use(VueApollo);
+axios.get(`${apiUrl}/api/front/config/`).then(({ data }) => {
+  console.log(data);
+  Environment.instance.config = data;
 
-new Vue({
-  router,
-  vuetify,
-  apolloProvider,
-  render: (h) => h(App),
-}).$mount('#app');
+  Vue.use(VueApollo);
+
+  const { apolloProvider } = getProvider();
+
+  new Vue({
+    router,
+    vuetify,
+    apolloProvider,
+    render: (h) => h(App),
+  }).$mount('#app');
+});

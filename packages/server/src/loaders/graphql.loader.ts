@@ -13,6 +13,7 @@ import { MicroframeworkLoader, MicroframeworkSettings } from 'microframework';
 import { SubscriptionServer } from 'subscriptions-transport-ws';
 import { buildSchema } from 'type-graphql';
 import { Container } from 'typedi';
+import {UpNextPubSubEngine} from "../api/pubsub/pubsub";
 
 export const GraphqlLoader: MicroframeworkLoader = async (settings: MicroframeworkSettings | undefined) => {
   const log = Logger.for(
@@ -25,7 +26,8 @@ export const GraphqlLoader: MicroframeworkLoader = async (settings: Microframewo
       authChecker,
       container: Container,
       dateScalarMode: 'isoDate',
-      resolvers: Object.values(Resolvers) as never
+      resolvers: Object.values(Resolvers) as never,
+      pubSub: UpNextPubSubEngine.instance.engine
     });
 
     const apolloServer = new ApolloServer({

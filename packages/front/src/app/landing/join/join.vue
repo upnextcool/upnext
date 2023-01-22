@@ -24,31 +24,33 @@
         ></v-progress-circular>
       </v-overlay>
       <v-container class="pt-10" fluid>
-        <p class="blurb">
-          Before you hop in the party, give yourself a name so that everyone
-          knows who's adding the bops.
-        </p>
-        <div class="nickname-input">
-          <v-form @submit.prevent="join" autocomplete="off" v-model="valid">
-            <v-text-field
-              autofocus
-              maxlength="20"
-              label="Nickname"
-              outlined
-              v-model="nickname"
-              :rules="[rules.required, rules.limit, rules.minimum]"
-            ></v-text-field>
-            <v-btn
-              block
-              tile
-              color="primary"
-              x-large
-              @click="join"
-              :disabled="!valid"
-            >
-              Join the party
-            </v-btn>
-          </v-form>
+        <div class="wrapper">
+          <p class="blurb">
+            Before you hop in the party, give yourself a name so that everyone
+            knows who's adding the bops.
+          </p>
+          <div class="nickname-input">
+            <v-form @submit.prevent="join" autocomplete="off" v-model="valid">
+              <v-text-field
+                autofocus
+                maxlength="20"
+                label="Nickname"
+                outlined
+                v-model="nickname"
+                :rules="[rules.required, rules.limit, rules.minimum]"
+              ></v-text-field>
+              <v-btn
+                block
+                tile
+                color="primary"
+                x-large
+                @click="join"
+                :disabled="!valid"
+              >
+                Join the party
+              </v-btn>
+            </v-form>
+          </div>
         </div>
       </v-container>
     </template>
@@ -57,7 +59,11 @@
 
 <script lang="ts">
 import Vue from 'vue';
-import {CHECK_FOR_MEMBERSHIP, CONFIG, JOIN_PARTY} from "../../../graphql";
+import {
+  CHECK_FOR_MEMBERSHIP,
+  JOIN_PARTY,
+  PARTY_BY_CODE,
+} from '../../../graphql';
 
 export default Vue.extend({
   name: 'unc-landing-nickname',
@@ -77,39 +83,55 @@ export default Vue.extend({
     },
   }),
   async mounted() {
-    const { data } = await this.$apollo.query({
-      query: CHECK_FOR_MEMBERSHIP,
-      variables: {
-        userId: localStorage.getItem("session"),
-      },
-    });
-    console.log(data);
+    const code = this.$route.query.code;
+    try {
+      const { data: membership } = await this.$apollo.query({
+        query: CHECK_FOR_MEMBERSHIP,
+        variables: {
+          userId: localStorage.getItem('session'),
+        },
+      });
+      const currentMembership = membership.checkForMembership;
+
+      const { data } = await this.$apollo.query({
+        query: PARTY_BY_CODE,
+        variables: {
+          code,
+        },
+      });
+
+      if (currentMembership && currentMembership.code === data.partyByCode.code) {
+        await this.$router.push(`/party`);
+      }
+    } catch {
+      await this.$router.push(`/`);
+    }
   },
   methods: {
     async join() {
-      console.log(this.nickname);
       this.loading = true;
       const code = this.$route.query.code;
-      if (!code) {
-        return this.$router.push('/');
-      }
 
       const { data: memberData } = await this.$apollo.mutate({
         mutation: JOIN_PARTY,
         variables: {
           username: this.nickname,
           partyCode: code,
-          userId: localStorage.getItem("session"),
+          userId: localStorage.getItem('session'),
         },
       });
-      localStorage.setItem("token", memberData.token);
-      location.href= '/party'
+      localStorage.setItem('token', memberData.token);
+      location.href = '/party';
     },
   },
 });
 </script>
 
 <style lang="scss">
+.wrapper {
+  max-width: 500px;
+  margin-inline: auto;
+}
 
 .blurb {
   margin-inline: 1rem;
