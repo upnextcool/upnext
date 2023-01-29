@@ -64,7 +64,7 @@ export default {
       const shareData = {
         title: this.party.name,
         text: "Join the party!",
-        url: `${this.$frontUrl}join?c=${this.party.code}`,
+        url: `${this.$frontUrl}join?code=${this.party.code}`,
       };
       await navigator.share(shareData);
     },

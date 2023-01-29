@@ -5,8 +5,15 @@
 import { Member, Party, PlaylistEntry, PlaylistHistory } from '../models';
 import { PartyStateOutput } from './output';
 import { AuthService, FullArtist, PartyService, UpNextService } from '../services';
-import { Album, FeaturedPlaylists, Playlist as PlaylistObject, SearchResultAll, Track } from '../spotify';
-import { Context } from '../types';
+import {
+  Album,
+  FeaturedPlaylists,
+  Playlist as PlaylistObject,
+  RecommendationsResponse,
+  SearchResultAll,
+  Track
+} from '../spotify';
+import {Context, PartyState} from '../types';
 import GraphQLJSON from 'graphql-type-json';
 import {
   Arg,
@@ -79,7 +86,10 @@ export class UpNextResolver {
 
   @Query(() => GraphQLJSON)
   @Authorized()
-  async spotifyRecommendations(@Ctx() context: Context): Promise<FeaturedPlaylists> {
+  async spotifyRecommendations(@Ctx() context: Context): Promise<{
+    recommendedPlaylists: FeaturedPlaylists;
+    recommendedTracks: RecommendationsResponse;
+  }> {
     return this._upNextService.getRecommendations(context.party);
   }
 
@@ -263,5 +273,23 @@ export class UpNextResolver {
     @Root() entry: PlaylistEntry,
   ): PlaylistEntry {
     return entry;
+  }
+
+  @Subscription({
+    topics: "PLAYER_PAUSED"
+  })
+  playerPaused(
+    @Root() state: PartyStateOutput,
+  ): PartyStateOutput {
+    return state;
+  }
+
+  @Subscription({
+    topics: "PLAYER_PLAYED"
+  })
+  playerPlayed(
+    @Root() state: PartyStateOutput,
+  ): PartyStateOutput {
+    return state;
   }
 }

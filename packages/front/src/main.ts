@@ -16,7 +16,6 @@ const apiUrl =
     : 'http://localhost:8443';
 
 axios.get(`${apiUrl}/api/front/config/`).then(({ data }) => {
-  console.log(data);
   Environment.instance.config = data;
 
   Vue.use(VueApollo);

@@ -5,8 +5,8 @@
         <v-icon>mdi-dots-vertical</v-icon>
       </v-btn>
     </template>
-    <v-sheet elevation="10" color="darker">
-      <v-list>
+    <v-sheet elevation="10"  color="darker">
+      <v-list color="transparent">
         <v-list-item>
           <v-list-item-avatar size="100" tile>
             <v-img :src="albumArtwork"></v-img>

@@ -56,9 +56,14 @@ const routes: Array<RouteConfig> = [
         component: () => import('../app/party/view/view.vue'),
         children: [
           {
-            path: 'popular',
+            path: 'popular-playlists',
             props: true,
             component: () => import('../app/party/view/popular-playlists.vue'),
+          },
+          {
+            path: 'suggested-tracks',
+            props: true,
+            component: () => import('../app/party/view/suggested-tracks.vue'),
           },
           {
             path: 'playlist/:id',

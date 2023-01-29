@@ -18,6 +18,7 @@ import {
   CurrentlyPlaying,
   FeaturedPlaylists,
   Playlist as PlaylistObject,
+  RecommendationsResponse,
   SearchResultAll,
   SimplifiedAlbum,
   Track,
@@ -30,6 +31,8 @@ import {
   VoteTypeEnum,
 } from '../types';
 import { Service } from 'typedi';
+import { UpNextPubSubEngine } from '../pubsub/pubsub';
+import dayjs from 'dayjs';
 
 export interface FullArtist {
   info: Artist;
@@ -106,11 +109,28 @@ export class UpNextService {
     await this._memberService.remove(m);
   }
 
-  async getRecommendations(party: Party): Promise<FeaturedPlaylists> {
+  async getRecommendations(
+    party: Party
+  ): Promise<{
+    recommendedPlaylists: FeaturedPlaylists;
+    recommendedTracks: RecommendationsResponse;
+  }> {
     const spotifyAccount = await this._partyService.getSpotifyAccountFor(party);
-    return this._spotifyService.spotifyApis.browse.getFeaturedPlaylists(
-      spotifyAccount.token
-    );
+    const recommendedPlaylists =
+      await this._spotifyService.spotifyApis.browse.getFeaturedPlaylists(
+        spotifyAccount.token
+      );
+    const previousSongs = await this._partyService.getHistoryFor(party);
+    const lastFiveIds = previousSongs
+      .sort((a, b) => dayjs(a.playedAt).diff(dayjs(b.playedAt)))
+      .map((e) => e.spotifyId)
+      .slice(0, 5);
+    const recommendedTracks =
+      await this._spotifyService.spotifyApis.browse.getRecommendationsFromTracks(
+        spotifyAccount.token,
+        lastFiveIds
+      );
+    return { recommendedPlaylists, recommendedTracks };
   }
 
   async getSpotifyPlaylist(
@@ -239,15 +259,23 @@ export class UpNextService {
       const currentPartyState = await this.determineCurrentState(
         party,
         currentSpotifyState,
-        previousState ? previousState.currentlyPlaying : undefined
+        previousState?.currentlyPlaying
       );
 
       const computedPartyState = await this.stateMachine(
         party,
         currentPartyState,
         currentSpotifyState,
-        previousState ? previousState.partyState : undefined
+        previousState?.partyState
       );
+
+      if (previousState?.state !== currentPartyState) {
+        await this.broadcastStateChange(
+          party,
+          currentPartyState,
+          computedPartyState
+        );
+      }
 
       this._partyStateService.setStateFor(party, {
         currentlyPlaying: currentSpotifyState,
@@ -259,6 +287,27 @@ export class UpNextService {
         `Looks like we have an issue with party: '${party.name}'`,
         error
       );
+    }
+  }
+
+  private async broadcastStateChange(
+    party: Party,
+    currentPartyState: PartyStateEnum,
+    computedPartyState: PartyState
+  ): Promise<void> {
+    switch (currentPartyState) {
+      case PartyStateEnum.PLAYING:
+        await UpNextPubSubEngine.instance.engine.publish(
+          'PLAYER_PLAYED',
+          computedPartyState
+        );
+        break;
+      case PartyStateEnum.PAUSED:
+        await UpNextPubSubEngine.instance.engine.publish(
+          'PLAYER_PAUSED',
+          computedPartyState
+        );
+        break;
     }
   }
 
@@ -278,6 +327,7 @@ export class UpNextService {
           currentSpotifyState
         );
       case PartyStateEnum.PLAYING:
+      case PartyStateEnum.SCRUBBUNG:
         return this._partyStateService.updateState(previousPartyState, {
           playing: currentSpotifyState.is_playing,
           progress: currentSpotifyState.progress_ms,
@@ -371,6 +421,11 @@ export class UpNextService {
     }
     if (currentState.is_playing) {
       if (currentState.item.id === previousState.item.id) {
+        if (
+          Math.abs(currentState.progress_ms - previousState.progress_ms) > 2000
+        ) {
+          return PartyStateEnum.SCRUBBUNG;
+        }
         if (
           currentState.item.duration_ms - currentState.progress_ms < 10_000 &&
           !this._partyStateService.hasSongQueued(party)

@@ -9,7 +9,7 @@
       <v-col cols="12">
         <v-row align="center" justify="center">
           <v-sheet class="text-center" elevation="0" color="transparent">
-            <v-icon color="primary" size="120">mdi-emoticon-sad-outline</v-icon>
+            <v-icon size="120">mdi-gauge-empty</v-icon>
             <h1 class="text-h4 font-weight-light my-3">Queue is Empty</h1>
             <v-btn to="/party/search" text small>
               <v-icon left>mdi-magnify</v-icon>

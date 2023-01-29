@@ -60,14 +60,26 @@
         </v-row>
       </v-col>
     </v-container>
-
-    <v-container v-else fluid class="fill-height">
+    <v-container v-else-if="error" fluid class="fill-height">
       <v-col cols="12">
         <v-row align="center" justify="center">
           <v-sheet class="text-center" elevation="0" color="transparent">
             <v-icon color="primary" size="120">mdi-music-rest-quarter</v-icon>
             <h1 class="text-h4 font-weight-light my-3">Nothing playing</h1>
-            <p class="text-body-2">There's no music playing anywhere</p>
+            <p class="text-body-2">There's no music playing</p>
+          </v-sheet>
+        </v-row>
+      </v-col>
+    </v-container>
+    <v-container v-else fluid class="fill-height">
+      <v-col cols="12">
+        <v-row align="center" justify="center">
+          <v-sheet class="text-center" elevation="0" color="transparent">
+            <v-progress-circular
+              indeterminate
+              size="150"
+              color="primary"
+            ></v-progress-circular>
           </v-sheet>
         </v-row>
       </v-col>
@@ -76,27 +88,68 @@
 </template>
 
 <script>
-import AppHomeHeader from "./header";
-import { GET_PARTY_STATE } from "../../../graphql";
-import AppHomeCurrentSongMenu from "./current-song-menu";
+import AppHomeHeader from './header';
+import {
+  GET_PARTY_STATE,
+  PLAYER_PAUSED,
+  PLAYER_PLAYED,
+} from '../../../graphql';
+import AppHomeCurrentSongMenu from './current-song-menu';
 
 export default {
   components: { AppHomeCurrentSongMenu, AppHomeHeader },
   data: () => ({
     partyState: null,
+    error: false,
+    partyStateLoop: null,
   }),
+  created() {
+    this.$watch(
+      () => this.$route.params,
+      () => {
+        this.setupPlayingState();
+      },
+      { immediate: true }
+    );
+  },
+
+  methods: {
+    async setupPlayingState() {
+      try {
+        const {
+          data: { partyState: currentPartyState },
+        } = await this.$apollo.query({
+          query: GET_PARTY_STATE,
+          fetchPolicy: 'no-cache',
+        });
+
+        this.partyState = currentPartyState;
+
+        clearInterval(this.partyStateLoop);
+        this.partyStateLoop = setInterval(() => {
+          if (this.partyState.progress > this.partyState.duration) {
+            this.partyState.progress = this.partyState.duration;
+          } else {
+            this.partyState.progress += 200;
+          }
+        }, 200);
+      } catch {
+        this.error = true;
+      }
+    },
+  },
   computed: {
     progress() {
       const asSeconds = this.partyState.progress / 1000;
       const m = Math.floor(asSeconds / 60);
       const s = Math.floor(asSeconds - Math.floor(asSeconds / 60) * 60);
-      return `${m}:${s < 10 ? "0" : ""}${s}`;
+      return `${m}:${s < 10 ? '0' : ''}${s}`;
     },
     duration() {
       const asSeconds = this.partyState.duration / 1000;
       const m = Math.floor(asSeconds / 60);
       const s = Math.floor(asSeconds - Math.floor(asSeconds / 60) * 60);
-      return `${m}:${s < 10 ? "0" : ""}${s}`;
+      return `${m}:${s < 10 ? '0' : ''}${s}`;
     },
     progressPercent() {
       return (this.partyState.progress / this.partyState.duration) * 100;
@@ -107,15 +160,34 @@ export default {
             this.partyState.palette
               ? this.partyState.palette.darkVibrant ??
                 this.partyState.palette.darkMuted
-              : "000000"
+              : '000000'
           }ff 50%, rgba(0,0,0,1) 100%);`
-        : "";
+        : '';
     },
   },
   apollo: {
-    partyState: {
-      query: GET_PARTY_STATE,
-      pollInterval: 1000,
+    $subscribe: {
+      playerPaused: {
+        query: PLAYER_PAUSED,
+        result({ data: { playerPaused: state} }) {
+          this.partyState = state;
+          clearInterval(this.partyStateLoop);
+          },
+      },
+      playerPlayed: {
+        query: PLAYER_PLAYED,
+        result({ data: { playerPlayed: state} }) {
+          this.partyState = state;
+          clearInterval(this.partyStateLoop);
+          this.partyStateLoop = setInterval(() => {
+            if (this.partyState.progress > this.partyState.duration) {
+              this.partyState.progress = this.partyState.duration;
+            } else {
+              this.partyState.progress += 200;
+            }
+          }, 200);
+        },
+      },
     },
   },
 };

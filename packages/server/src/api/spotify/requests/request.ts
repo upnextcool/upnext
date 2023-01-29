@@ -44,6 +44,7 @@ export class Request {
       try {
         return (await this.makeAxios()).data as T;
       } catch (error) {
+        console.error(error.data)
         throw new GenericError(
           error.response.data.error.status, error.response.data.error.message, error.stack
         );
@@ -79,14 +80,14 @@ export class Request {
             params: this.queryParameters,
             url: this.getURI()
           });
-        } 
+        }
         return axios.request({
           headers: this.headers,
           method: 'post',
           params: this.queryParameters,
           url: this.getURI()
         });
-                
+
       case HttpMethods.PUT:
         return axios.request({
           data: this.bodyParameters,

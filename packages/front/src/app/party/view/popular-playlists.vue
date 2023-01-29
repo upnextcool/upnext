@@ -1,12 +1,12 @@
 <template>
   <v-main>
-    <v-container v-if="recommendations" class="px-4" fluid>
+    <v-container class="px-4" fluid>
       <v-col cols="12">
         <v-row class="pb-4" justify="center" align="center">
           <h1 class="text-h4 font-weight-light ellipsis">Popular</h1>
           <v-spacer></v-spacer>
         </v-row>
-        <v-row class="mt-4">
+        <v-row v-if="recommendations" class="mt-4">
           <div class="playlist-grid-container">
             <v-card
               tile
@@ -23,6 +23,14 @@
             </v-card>
           </div>
         </v-row>
+        <v-row v-else class="mt-4" align="center" justify="center">
+          <v-progress-circular
+            class="mt-10"
+            indeterminate
+            size="150"
+            color="primary"
+          ></v-progress-circular>
+        </v-row>
       </v-col>
     </v-container>
   </v-main>
@@ -38,7 +46,7 @@ export default {
   }),
   computed: {
     recommendationPlaylists() {
-      return this.recommendations.playlists.items;
+      return this.recommendations.recommendedPlaylists.playlists.items;
     },
   },
   apollo: {

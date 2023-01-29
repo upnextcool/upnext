@@ -9,7 +9,8 @@ export enum PartyStateEnum {
   PLAYING,
   NOTHING_PLAYING,
   PAUSED,
-  NEXT_FROM_QUEUE
+  NEXT_FROM_QUEUE,
+  SCRUBBUNG
 }
 
 registerEnumType(

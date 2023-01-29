@@ -91,3 +91,41 @@ export const QUEUE_DOWNVOTE = gql`
     }
   }
 `;
+
+export const PLAYER_PAUSED = gql`
+  subscription playerPaused {
+  playerPaused {
+    artist
+      artwork
+      duration
+      name
+      playing
+      progress
+      spotifyId
+      palette {
+        vibrant
+        lightVibrant
+        darkVibrant
+      }
+  }
+}
+`;
+
+export const PLAYER_PLAYED = gql`
+  subscription playerPlayed {
+    playerPlayed {
+      artist
+      artwork
+      duration
+      name
+      playing
+      progress
+      spotifyId
+      palette {
+        vibrant
+        lightVibrant
+        darkVibrant
+      }
+    }
+  }
+`;

@@ -74,8 +74,8 @@ export class Browse {
   }
 
   public async getCategoryPlaylists(
-    token: string, 
-    id: string, 
+    token: string,
+    id: string,
     limit: number = MAX_LIMIT,
     offset = 0
   ): Promise<Category> {
@@ -87,12 +87,11 @@ export class Browse {
       .build()
       .execute<Category>();
   }
-  
+
   public async getRecommendationsFromTracks(
-    token: string, 
+    token: string,
     trackSeeds: Array<string>,
     limit: number = MAX_LIMIT,
-    offset = 0
   ): Promise<RecommendationsResponse> {
     return WebApiRequestBuilder
       .make(token)
@@ -100,8 +99,6 @@ export class Browse {
       .withPath('/v1/recommendations')
       .withQueryParameters({
         limit,
-        market: 'from_token',
-        offset,
         seed_tracks: trackSeeds.join(',')
       })
       .build()
