@@ -71,10 +71,9 @@
   },
   "packageManager": "yarn@3.3.1",
   "dependencies": {
+    "@apollo/client": "3",
     "@apollo/server": "4",
     "@fingerprintjs/fingerprintjs": "^3.3.3",
-    "apollo-boost": "^0.4.9",
-    "apollo-link-ws": "^1.0.20",
     "axios": "^1",
     "body-parser": "^1.20.0",
     "chalk": "^4.0.0",
