@@ -17,14 +17,18 @@ export const TypeOrmLoader: MicroframeworkLoader = async (settings: Microframewo
   const options: ConnectionOptions = {
     database: environment.database.database,
     entities: Object.values(Models),
+    // The pg driver pool. The party loop and GraphQL field resolvers each open
+    // several short-lived queries, so a too-small pool serialises requests and
+    // shows up as lag once a few dozen users are active. Size the pool well
+    // above the default (10) and fail fast rather than hang when it is drained.
+    extra: {
+      connectionTimeoutMillis: 5000,
+      idleTimeoutMillis: 30_000,
+      max: 30,
+    },
     host: environment.database.host,
-    logging: [
-      'schema',
-      'error',
-      'warn',
-      'info',
-      'log',
-    ],
+    // Per-query logging is expensive at scale; keep only errors and warnings.
+    logging: [ 'error', 'warn' ],
     password: environment.database.password,
     port: environment.database.port,
     ssl: { rejectUnauthorized: false },

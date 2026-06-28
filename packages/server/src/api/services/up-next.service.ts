@@ -358,9 +358,11 @@ export class UpNextService {
         }))
         .sort((a, b) => b.score - a.score);
       const [nextSong] = sorted;
-      const spotifyAccount = await this._partyService.getSpotifyAccountFor(
-        party
-      );
+      // The party loop already eager-loads spotifyAccount, so avoid an extra
+      // round-trip that re-fetches the whole party every second near song end.
+      const spotifyAccount =
+        party.spotifyAccount ??
+        (await this._partyService.getSpotifyAccountFor(party));
       await this._spotifyService.spotifyApis.player.addSongToEndOfQueue(
         spotifyAccount.token,
         nextSong.spotifyId

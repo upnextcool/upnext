@@ -2,11 +2,28 @@
  * Copyright (c) 2021, Ethan Elliott
  */
 
-import axios, { AxiosResponse } from 'axios';
+import axios, { AxiosInstance, AxiosResponse } from 'axios';
+import http from 'http';
+import https from 'https';
 
 import { GenericError } from '../error';
 import { HttpMethods } from '../types';
 import { RequestBuilder } from './request-builder';
+
+/**
+ * A single shared axios instance with keep-alive enabled. The party loop polls
+ * Spotify once per second per party, so without connection reuse every call
+ * pays for a fresh TCP + TLS handshake. Re-using sockets keeps latency and
+ * file-descriptor usage low when many parties are active at once.
+ */
+const keepAliveHttpAgent = new http.Agent({ keepAlive: true, maxSockets: 100 });
+const keepAliveHttpsAgent = new https.Agent({ keepAlive: true, maxSockets: 100 });
+
+const spotifyHttpClient: AxiosInstance = axios.create({
+  httpAgent: keepAliveHttpAgent,
+  httpsAgent: keepAliveHttpsAgent,
+  timeout: 10_000,
+});
 
 export class Request {
     private readonly method: HttpMethods;
@@ -44,9 +61,15 @@ export class Request {
       try {
         return (await this.makeAxios()).data as T;
       } catch (error) {
-        console.error(error.data)
+        const spotifyError = error?.response?.data?.error;
+        if (spotifyError) {
+          throw new GenericError(
+            spotifyError.status, spotifyError.message, error.stack
+          );
+        }
+        // Network failures and timeouts have no Spotify error payload to unwrap.
         throw new GenericError(
-          error.response.data.error.status, error.response.data.error.message, error.stack
+          error?.response?.status ?? 503, error?.message ?? 'Spotify request failed', error?.stack
         );
       }
     }
@@ -58,14 +81,14 @@ export class Request {
     private makeAxios(): Promise<AxiosResponse> {
       switch (this.method) {
       case HttpMethods.DELETE:
-        return axios.request({
+        return spotifyHttpClient.request({
           headers: this.headers,
           method: 'delete',
           params: this.queryParameters,
           url: this.getURI()
         });
       case HttpMethods.GET:
-        return axios.request({
+        return spotifyHttpClient.request({
           headers: this.headers,
           method: 'get',
           params: this.queryParameters,
@@ -73,7 +96,7 @@ export class Request {
         });
       case HttpMethods.POST:
         if (this.bodyParameters) {
-          return axios.request({
+          return spotifyHttpClient.request({
             data: this.bodyParameters,
             headers: this.headers,
             method: 'post',
@@ -81,7 +104,7 @@ export class Request {
             url: this.getURI()
           });
         }
-        return axios.request({
+        return spotifyHttpClient.request({
           headers: this.headers,
           method: 'post',
           params: this.queryParameters,
@@ -89,7 +112,7 @@ export class Request {
         });
 
       case HttpMethods.PUT:
-        return axios.request({
+        return spotifyHttpClient.request({
           data: this.bodyParameters,
           headers: this.headers,
           method: 'put',

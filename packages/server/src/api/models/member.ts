@@ -10,6 +10,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   OneToMany,
@@ -34,6 +35,7 @@ export class Member {
 
   @IsString()
   @IsNotEmpty()
+  @Index()
   @Column()
   @Field({ description: 'The username of the member' })
   username: string;
