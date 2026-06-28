@@ -4,18 +4,21 @@
 
 import { environment } from '../../environment';
 import { Party, SpotifyAccount } from '../models';
-import { SpotifyAccountRepository } from '../repositories';
 import { SpotifyService } from './spotify.service';
 import dayjs from 'dayjs';
 import { Service } from 'typedi';
-import { OrmRepository } from 'typeorm-typedi-extensions';
+import { DataSource, Repository } from 'typeorm';
 
 @Service()
 export class SpotifyAccountService {
+  private readonly _spotifyAccountRepository: Repository<SpotifyAccount>;
+
   constructor(
-    @OrmRepository() private readonly _spotifyAccountRepository: SpotifyAccountRepository,
+    dataSource: DataSource,
     private readonly _spotifyService: SpotifyService
-  ) {}
+  ) {
+    this._spotifyAccountRepository = dataSource.getRepository(SpotifyAccount);
+  }
 
   async getAll(): Promise<Array<SpotifyAccount>> {
     return this._spotifyAccountRepository.find();

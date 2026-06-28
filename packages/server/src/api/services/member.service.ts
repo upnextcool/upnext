@@ -3,13 +3,16 @@
  */
 
 import { Member, Party, PlaylistEntry, User, Vote } from '../models';
-import { MemberRepository } from '../repositories';
 import { Service } from 'typedi';
-import { OrmRepository } from 'typeorm-typedi-extensions';
+import { DataSource, Repository } from 'typeorm';
 
 @Service()
 export class MemberService {
-  constructor(@OrmRepository() private readonly _memberRepository: MemberRepository) {}
+  private readonly _memberRepository: Repository<Member>;
+
+  constructor(dataSource: DataSource) {
+    this._memberRepository = dataSource.getRepository(Member);
+  }
 
   async getAll(): Promise<Array<Member>> {
     return this._memberRepository.find();
@@ -26,7 +29,7 @@ export class MemberService {
   async getByUser(user: User): Promise<Member> {
     return this._memberRepository.findOne({
       where: {
-        user
+        user: { id: user.id }
       }
     });
   }
@@ -42,7 +45,7 @@ export class MemberService {
   async getByAllByParty(party: Party): Promise<Array<Member>> {
     return this._memberRepository.find({
       where: {
-        party
+        party: { id: party.id }
       }
     });
   }

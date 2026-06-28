@@ -8,7 +8,6 @@ import { useContainer as cronUseContainer } from 'cron-decorators';
 import { MicroframeworkLoader } from 'microframework';
 import { useContainer as routingUseContainer } from 'routing-controllers';
 import { Container } from 'typedi';
-import { useContainer as ormUseContainer } from 'typeorm';
 
 
 export const IocLoader: MicroframeworkLoader = () => {
@@ -16,8 +15,9 @@ export const IocLoader: MicroframeworkLoader = () => {
     __filename, [ 'IOC' ]
   );
   log.info('Loading Containers');
+  // TypeORM 0.3 removed useContainer; repositories now come from the
+  // DataSource registered in the container by the TypeOrm loader.
   routingUseContainer(Container);
-  ormUseContainer(Container);
   cronUseContainer(Container);
   classValidatorUseContainer(Container);
 };

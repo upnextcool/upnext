@@ -4,7 +4,22 @@
 
 import { Member, Party, PlaylistEntry, User, Vote } from '../models';
 import DataLoader from 'dataloader';
-import { getRepository } from 'typeorm';
+import { Container } from 'typedi';
+import { DataSource, EntityTarget, In, ObjectLiteral } from 'typeorm';
+
+// TypeORM 0.3 removed the global getRepository(); resolve repositories from the
+// DataSource registered in the container by the TypeOrm loader instead.
+const repositoryFor = <T extends ObjectLiteral>(entity: EntityTarget<T>) =>
+  Container.get(DataSource).getRepository<T>(entity);
+
+// Load the given parents by id (with one relation) in a single query. Replaces
+// the removed findByIds with the supported find({ where: { id: In(...) } }).
+const loadByIds = <T extends { id: string }>(
+  entity: EntityTarget<T>,
+  relations: Array<string>,
+  ids: ReadonlyArray<string>
+): Promise<Array<T>> =>
+  repositoryFor(entity).find({ relations, where: { id: In([ ...ids ]) } as never });
 
 /**
  * Per-request DataLoaders. Each GraphQL field resolver used to issue its own
@@ -50,37 +65,37 @@ const batchHasOne = <P extends { id: string }, C>(
 export const createLoaders = (): Loaders => ({
   addedByEntryId: new DataLoader<string, Member>(
     batchHasOne(
-      (ids) => getRepository(PlaylistEntry).findByIds(ids, { relations: [ 'addedBy' ] }),
+      (ids) => loadByIds(PlaylistEntry, [ 'addedBy' ], ids),
       (entry) => entry.addedBy
     )
   ),
   memberByVoteId: new DataLoader<string, Member>(
     batchHasOne(
-      (ids) => getRepository(Vote).findByIds(ids, { relations: [ 'member' ] }),
+      (ids) => loadByIds(Vote, [ 'member' ], ids),
       (vote) => vote.member
     )
   ),
   membersByPartyId: new DataLoader<string, Array<Member>>(
     batchHasMany(
-      (ids) => getRepository(Party).findByIds(ids, { relations: [ 'members' ] }),
+      (ids) => loadByIds(Party, [ 'members' ], ids),
       (party) => party.members
     )
   ),
   playlistByPartyId: new DataLoader<string, Array<PlaylistEntry>>(
     batchHasMany(
-      (ids) => getRepository(Party).findByIds(ids, { relations: [ 'playlist' ] }),
+      (ids) => loadByIds(Party, [ 'playlist' ], ids),
       (party) => party.playlist
     )
   ),
   userByMemberId: new DataLoader<string, User>(
     batchHasOne(
-      (ids) => getRepository(Member).findByIds(ids, { relations: [ 'user' ] }),
+      (ids) => loadByIds(Member, [ 'user' ], ids),
       (member) => member.user
     )
   ),
   votesByEntryId: new DataLoader<string, Array<Vote>>(
     batchHasMany(
-      (ids) => getRepository(PlaylistEntry).findByIds(ids, { relations: [ 'votes' ] }),
+      (ids) => loadByIds(PlaylistEntry, [ 'votes' ], ids),
       (entry) => entry.votes
     )
   ),
