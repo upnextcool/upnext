@@ -14,17 +14,16 @@ import {
   Track
 } from '../spotify';
 import {Context, PartyState} from '../types';
+import { UpNextPubSubEngine } from '../pubsub/pubsub';
 import GraphQLJSON from 'graphql-type-json';
 import {
   Arg,
   Authorized,
   Ctx,
   Mutation,
-  PubSub,
   Query,
   Resolver,
   Subscription,
-  PubSubEngine,
   Root
 } from 'type-graphql';
 import { Service } from 'typedi';
@@ -191,7 +190,6 @@ export class UpNextResolver {
   async addToQueue(
     @Ctx() context: Context,
     @Arg('songId') songId: string,
-    @PubSub() pubSub: PubSubEngine
   ): Promise<string> {
     const entry = await this._upNextService.addToPlaylist(
       context.party,
@@ -199,7 +197,7 @@ export class UpNextResolver {
       songId
     );
 
-    await pubSub.publish('QUEUE_NEW_SONG', entry);
+    UpNextPubSubEngine.instance.engine.publish('QUEUE_NEW_SONG', entry);
 
     return songId;
   }
@@ -209,13 +207,12 @@ export class UpNextResolver {
   async upvote(
     @Ctx() context: Context,
     @Arg('entryId') entryId: string,
-    @PubSub() pubSub: PubSubEngine
   ): Promise<PlaylistEntry> {
     const entry = await this._upNextService.upvote(
       context.member,
       entryId
     )
-    await pubSub.publish('QUEUE_UPVOTE', entry);
+    UpNextPubSubEngine.instance.engine.publish('QUEUE_UPVOTE', entry);
 
     return entry;
   }
@@ -225,14 +222,13 @@ export class UpNextResolver {
   async downvote(
     @Ctx() context: Context,
     @Arg('entryId') entryId: string,
-    @PubSub() pubSub: PubSubEngine
   ): Promise<PlaylistEntry> {
     const entry = await this._upNextService.downvote(
       context.member,
       entryId
     );
 
-    await pubSub.publish('QUEUE_DOWNVOTE', entry);
+    UpNextPubSubEngine.instance.engine.publish('QUEUE_DOWNVOTE', entry);
 
     return entry;
   }

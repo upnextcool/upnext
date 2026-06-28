@@ -2,18 +2,23 @@
  * Copyright (c) 2021, Ethan Elliott
  */
 import { authChecker } from '../api/auth/auth';
-import { context } from '../api/auth/context';
+import { context, wsContext } from '../api/auth/context';
+import { Context } from '../api/types';
 import { environment } from '../environment';
 import { Logger } from '../util/logger';
 import * as Resolvers from '../api/resolvers';
-import { ApolloServer } from 'apollo-server-express';
+import { ApolloServer } from '@apollo/server';
+import { expressMiddleware } from '@apollo/server/express4';
+import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHttpServer';
+import { json } from 'body-parser';
 import { Express } from 'express';
-import { execute, subscribe } from 'graphql';
+import { useServer } from 'graphql-ws/lib/use/ws';
+import { Server } from 'http';
 import { MicroframeworkLoader, MicroframeworkSettings } from 'microframework';
-import { SubscriptionServer } from 'subscriptions-transport-ws';
 import { buildSchema } from 'type-graphql';
 import { Container } from 'typedi';
-import {UpNextPubSubEngine} from "../api/pubsub/pubsub";
+import { WebSocketServer } from 'ws';
+import { UpNextPubSubEngine } from '../api/pubsub/pubsub';
 
 export const GraphqlLoader: MicroframeworkLoader = async (settings: MicroframeworkSettings | undefined) => {
   const log = Logger.for(
@@ -22,46 +27,59 @@ export const GraphqlLoader: MicroframeworkLoader = async (settings: Microframewo
   if (settings && environment.graphql.enabled) {
     log.info('Starting graphql');
     const app: Express = settings.getData('express_app');
+    const httpServer: Server = settings.getData('server');
+    const path = `/${environment.graphql.route}`;
+
     const schema = await buildSchema({
       authChecker,
       container: Container,
-      dateScalarMode: 'isoDate',
+      pubSub: UpNextPubSubEngine.instance.engine,
       resolvers: Object.values(Resolvers) as never,
-      pubSub: UpNextPubSubEngine.instance.engine
     });
 
-    const apolloServer = new ApolloServer({
-      context,
+    // Subscriptions over the modern graphql-ws protocol (replaces the legacy
+    // subscriptions-transport-ws SubscriptionServer).
+    const wsServer = new WebSocketServer({ path, server: httpServer });
+    const serverCleanup = useServer(
+      {
+        context: (ctx) => wsContext(ctx.connectionParams as Record<string, unknown>),
+        schema,
+      },
+      wsServer
+    );
+
+    const apolloServer = new ApolloServer<Context>({
       introspection: !environment.isProduction,
-      logger: log,
-      playground: !environment.isProduction,
       plugins: [
+        // Drain in-flight HTTP requests, then dispose the websocket server.
+        ApolloServerPluginDrainHttpServer({ httpServer }),
         {
-          requestDidStart: () => ({
-            willSendResponse(requestContext) {
-              Container.reset(requestContext.context.requestId);
-            },
-          }),
+          async serverWillStart() {
+            return {
+              async drainServer() {
+                await serverCleanup.dispose();
+              },
+            };
+          },
+        },
+        // Release the per-request typedi child container once the response is sent.
+        {
+          async requestDidStart() {
+            return {
+              async willSendResponse(requestContext) {
+                Container.reset(requestContext.contextValue.requestId);
+              },
+            };
+          },
         },
       ],
       schema,
     });
-    apolloServer.applyMiddleware({
-      app,
-      path: `/${environment.graphql.route}`,
-    });
+    await apolloServer.start();
 
-    const server = settings.getData('server');
-    const ss = new SubscriptionServer(
-      {
-        execute,
-        schema,
-        subscribe,
-      }, {
-        path: `/${environment.graphql.route}`,
-        server,
-      }
-    );
-    log.info(ss.server.path);
+    // CORS is already applied globally by routing-controllers; Apollo 4 only
+    // needs a JSON body parser on its own route.
+    app.use(path, json(), expressMiddleware(apolloServer, { context }));
+    log.info(`GraphQL ready at ${path} (HTTP + ws)`);
   }
 };
