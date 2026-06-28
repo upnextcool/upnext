@@ -2,7 +2,7 @@
  * Copyright (c) 2021, Ethan Elliott
  */
 
-import axios, { AxiosInstance, AxiosResponse } from 'axios';
+import axios, { AxiosInstance, AxiosResponse, Method, RawAxiosRequestHeaders } from 'axios';
 import http from 'http';
 import https from 'https';
 
@@ -79,48 +79,24 @@ export class Request {
     }
 
     private makeAxios(): Promise<AxiosResponse> {
-      switch (this.method) {
-      case HttpMethods.DELETE:
-        return spotifyHttpClient.request({
-          headers: this.headers,
-          method: 'delete',
-          params: this.queryParameters,
-          url: this.getURI()
-        });
-      case HttpMethods.GET:
-        return spotifyHttpClient.request({
-          headers: this.headers,
-          method: 'get',
-          params: this.queryParameters,
-          url: this.getURI()
-        });
-      case HttpMethods.POST:
-        if (this.bodyParameters) {
-          return spotifyHttpClient.request({
-            data: this.bodyParameters,
-            headers: this.headers,
-            method: 'post',
-            params: this.queryParameters,
-            url: this.getURI()
-          });
-        }
-        return spotifyHttpClient.request({
-          headers: this.headers,
-          method: 'post',
-          params: this.queryParameters,
-          url: this.getURI()
-        });
-
-      case HttpMethods.PUT:
-        return spotifyHttpClient.request({
-          data: this.bodyParameters,
-          headers: this.headers,
-          method: 'put',
-          params: this.queryParameters,
-          url: this.getURI()
-        });
-      default:
+      const methods: Record<HttpMethods, Method> = {
+        [HttpMethods.DELETE]: 'delete',
+        [HttpMethods.GET]: 'get',
+        [HttpMethods.POST]: 'post',
+        [HttpMethods.PUT]: 'put',
+      };
+      const method = methods[this.method];
+      if (!method) {
         throw new Error(`Invalid HTTP method: ${this.method}`);
       }
+      return spotifyHttpClient.request({
+        // Bodies are only meaningful on POST/PUT; axios ignores `data` on
+        // GET/DELETE, so passing it unconditionally is safe.
+        data: this.bodyParameters,
+        headers: this.headers as RawAxiosRequestHeaders,
+        method,
+        params: this.queryParameters,
+        url: this.getURI()
+      });
     }
 }
