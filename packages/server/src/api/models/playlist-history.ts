@@ -6,7 +6,7 @@ import { Party } from './party';
 import { Type } from 'class-transformer';
 import { IsDate, IsObject, IsString, IsUrl, IsUUID, ValidateNested } from 'class-validator';
 import { Field, ObjectType } from 'type-graphql';
-import { Column, CreateDateColumn, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, Index, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 
 @ObjectType({
   description: 'A song that has played at the party',
@@ -46,6 +46,7 @@ export class PlaylistHistory {
   @Type(() => Party)
   @IsObject()
   @ValidateNested()
+  @Index()
   @ManyToOne(
     () => Party, party => party.history, { onDelete: 'CASCADE' }
   )

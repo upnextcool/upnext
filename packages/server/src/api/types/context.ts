@@ -3,6 +3,7 @@
  */
 
 import { Member, Party, User } from '../models';
+import { Loaders } from '../dataloaders';
 import { ContainerInstance } from 'typedi';
 
 export interface Context {
@@ -11,4 +12,5 @@ export interface Context {
   party: Party;
   requestId: string;
   container: ContainerInstance;
+  loaders: Loaders;
 }

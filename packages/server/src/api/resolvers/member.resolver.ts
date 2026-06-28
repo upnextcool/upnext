@@ -4,7 +4,8 @@
 
 import { Member, Party, PlaylistEntry, User, Vote } from '../models';
 import { MemberService } from '../services';
-import { FieldResolver, Query, Resolver, ResolverInterface, Root } from 'type-graphql';
+import { Context } from '../types';
+import { Ctx, FieldResolver, Query, Resolver, ResolverInterface, Root } from 'type-graphql';
 import { Service } from 'typedi';
 
 @Service()
@@ -19,8 +20,8 @@ export class MemberResolver implements ResolverInterface<Member>{
   }
 
   @FieldResolver(() => User)
-  async user (@Root() member: Member): Promise<User> {
-    return this._memberService.getUserFor(member);
+  async user (@Root() member: Member, @Ctx() ctx: Context): Promise<User> {
+    return ctx?.loaders?.userByMemberId?.load(member.id) ?? this._memberService.getUserFor(member);
   }
 
   @FieldResolver(() => Party)

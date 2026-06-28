@@ -5471,6 +5471,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"dataloader@npm:2.2.2":
+  version: 2.2.2
+  resolution: "dataloader@npm:2.2.2"
+  checksum: 4dabd247089c29f194e94d5434d504f99156c5c214a03463c20f3f17f40398d7e179edee69a27c16e315519ac8739042a810090087ae26449a0e685156a02c65
+  languageName: node
+  linkType: hard
+
 "dayjs@npm:^1.11.4":
   version: 1.11.7
   resolution: "dayjs@npm:1.11.7"
@@ -14974,6 +14981,7 @@ __metadata:
     class-validator-jsonschema: ^2.0.3
     cors: ^2.8.5
     cron-decorators: ^0.1.5
+    dataloader: 2.2.2
     dayjs: ^1.11.4
     debounce: ^1.2.1
     deepmerge: ^4.2.2

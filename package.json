@@ -82,6 +82,7 @@
     "class-validator-jsonschema": "^2.0.3",
     "cors": "^2.8.5",
     "cron-decorators": "^0.1.5",
+    "dataloader": "2.2.2",
     "dayjs": "^1.11.4",
     "debounce": "^1.2.1",
     "dotenv": "^8.2.0",

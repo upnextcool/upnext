@@ -4,7 +4,8 @@
 
 import { Member, Party, PlaylistEntry } from '../models';
 import { PartyService } from '../services';
-import { Arg, FieldResolver, Mutation, Query, Resolver, ResolverInterface, Root } from 'type-graphql';
+import { Context } from '../types';
+import { Arg, Ctx, FieldResolver, Mutation, Query, Resolver, ResolverInterface, Root } from 'type-graphql';
 import { Service } from 'typedi';
 
 @Service()
@@ -24,13 +25,13 @@ export class PartyResolver implements ResolverInterface<Party>{
   }
 
   @FieldResolver(() => [ Member ])
-  async members (@Root() party: Party): Promise<Array<Member>> {
-    return this._partyService.getMembersFor(party);
+  async members (@Root() party: Party, @Ctx() ctx: Context): Promise<Array<Member>> {
+    return ctx?.loaders?.membersByPartyId?.load(party.id) ?? this._partyService.getMembersFor(party);
   }
 
   @FieldResolver(() => [ PlaylistEntry ])
-  async playlist(@Root() party: Party): Promise<Array<PlaylistEntry>> {
-    return this._partyService.getPlaylistFor(party);
+  async playlist(@Root() party: Party, @Ctx() ctx: Context): Promise<Array<PlaylistEntry>> {
+    return ctx?.loaders?.playlistByPartyId?.load(party.id) ?? this._partyService.getPlaylistFor(party);
   }
 
   @Mutation(() => Party)

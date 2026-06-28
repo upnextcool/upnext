@@ -58,6 +58,7 @@ export class Member {
   @Type(() => Party)
   @IsObject()
   @ValidateNested()
+  @Index()
   @ManyToOne(
     () => Party, party => party.members, { onDelete: 'CASCADE' }
   )

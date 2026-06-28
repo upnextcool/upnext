@@ -4,6 +4,7 @@
 
 import { validateTokenAndGetState } from './util';
 import { Context } from '../types';
+import { createLoaders } from '../dataloaders';
 import { ExpressContext } from 'apollo-server-express/src/ApolloServer';
 import { Container } from 'typedi';
 import { v4 } from 'uuid';
@@ -15,6 +16,7 @@ export const context = async (expressContext: ExpressContext): Promise<Context> 
   const container = Container.of(requestId);
   const c: Context = {
     container,
+    loaders: createLoaders(),
     member,
     party,
     requestId,

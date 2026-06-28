@@ -8,7 +8,7 @@ import { Vote } from './vote';
 import { Type } from 'class-transformer';
 import { IsArray, IsDate, IsObject, IsString, IsUrl, IsUUID, ValidateNested } from 'class-validator';
 import { Field, ObjectType } from 'type-graphql';
-import { Column, CreateDateColumn, Entity, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, Index, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 
 @ObjectType({
   description: 'A song to be played at the party',
@@ -48,6 +48,7 @@ export class PlaylistEntry {
   @Type(() => Member)
   @IsObject()
   @ValidateNested()
+  @Index()
   @ManyToOne(
     () => Member, member => member.playlistEntries, { onDelete: 'CASCADE' }
   )
@@ -59,6 +60,7 @@ export class PlaylistEntry {
   @Type(() => Party)
   @IsObject()
   @ValidateNested()
+  @Index()
   @ManyToOne(
     () => Party, party => party.playlist, { onDelete: 'CASCADE' }
   )
