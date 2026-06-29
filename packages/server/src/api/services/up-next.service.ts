@@ -32,6 +32,7 @@ import {
 } from '../types';
 import { Service } from 'typedi';
 import { UpNextPubSubEngine } from '../pubsub/pubsub';
+import { BoundedCache } from '../../util/cache';
 import dayjs from 'dayjs';
 
 export interface FullArtist {
@@ -53,6 +54,16 @@ export class UpNextService {
     private readonly _voteService: VoteService,
     private readonly _playlistHistoryService: PlaylistHistoryService
   ) {}
+
+  // Track metadata is immutable, so cache it by Spotify id (any party's token
+  // returns the same data) to avoid re-hitting Spotify on every add / lookup.
+  private readonly _trackCache = new BoundedCache<Track>(1000, 6 * 60 * 60 * 1000);
+
+  private getTrackCached(token: string, songId: string): Promise<Track> {
+    return this._trackCache.getOrLoad(songId, () =>
+      this._spotifyService.spotifyApis.tracks.getTrack(token, songId)
+    );
+  }
 
   async joinParty(
     partyCode: string,
@@ -199,10 +210,7 @@ export class UpNextService {
     songId: string
   ): Promise<PlaylistEntry> {
     const spotifyAccount = await this._partyService.getSpotifyAccountFor(party);
-    const x = await this._spotifyService.spotifyApis.tracks.getTrack(
-      spotifyAccount.token,
-      songId
-    );
+    const x = await this.getTrackCached(spotifyAccount.token, songId);
     return await this._playlistEntryService.newEntry({
       addedBy: member,
       albumArtwork: x.album.images[0].url,
@@ -443,10 +451,7 @@ export class UpNextService {
 
   async getSpotifySong(party: Party, songId: string): Promise<Track> {
     const spotifyAccount = await this._partyService.getSpotifyAccountFor(party);
-    return this._spotifyService.spotifyApis.tracks.getTrack(
-      spotifyAccount.token,
-      songId
-    );
+    return this.getTrackCached(spotifyAccount.token, songId);
   }
 
   private cleanAlbums(albums: Array<SimplifiedAlbum>): Array<SimplifiedAlbum> {

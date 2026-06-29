@@ -5,6 +5,7 @@
 import { Party } from '../models';
 import { CurrentlyPlaying } from '../spotify';
 import { ArtworkPalette, PartyState, PartyStateEnum } from '../types';
+import { BoundedCache } from '../../util/cache';
 import Vibrant from 'node-vibrant';
 import { Service } from 'typedi';
 
@@ -57,6 +58,17 @@ export class PartyStateService {
     return x ? x.isQueued:false;
   }
 
+  // Drop in-memory state for parties that are no longer being polled so these
+  // maps don't grow without bound as parties come and go over the server's life.
+  pruneExcept(activePartyIds: Set<string>): void {
+    [ ...this._partySpotifyStates.keys() ]
+      .filter(id => !activePartyIds.has(id))
+      .forEach(id => this._partySpotifyStates.delete(id));
+    [ ...this._nextSongQueue.keys() ]
+      .filter(id => !activePartyIds.has(id))
+      .forEach(id => this._nextSongQueue.delete(id));
+  }
+
   updateState(
     previousState: PartyState,
     newState: Partial<PartyState>
@@ -67,15 +79,22 @@ export class PartyStateService {
     };
   }
 
+  // Palettes are derived from album-art URLs, which are stable and recur across
+  // songs/parties. Extraction downloads and processes the image, so cache the
+  // result per URL to keep it off the hot NEW_SONG path.
+  private readonly _paletteCache = new BoundedCache<ArtworkPalette>(500);
+
   async computePalette(artwork: string): Promise<ArtworkPalette> {
-    const palette = await Vibrant.from(artwork).getSwatches();
-    return {
-      darkMuted: palette.DarkMuted.hex,
-      darkVibrant: palette.DarkVibrant.hex,
-      lightMuted: palette.LightMuted.hex,
-      lightVibrant: palette.LightVibrant.hex,
-      muted: palette.Muted.hex,
-      vibrant: palette.Vibrant.hex,
-    };
+    return this._paletteCache.getOrLoad(artwork, async () => {
+      const palette = await Vibrant.from(artwork).getSwatches();
+      return {
+        darkMuted: palette.DarkMuted.hex,
+        darkVibrant: palette.DarkVibrant.hex,
+        lightMuted: palette.LightMuted.hex,
+        lightVibrant: palette.LightVibrant.hex,
+        muted: palette.Muted.hex,
+        vibrant: palette.Vibrant.hex,
+      };
+    });
   }
 }
