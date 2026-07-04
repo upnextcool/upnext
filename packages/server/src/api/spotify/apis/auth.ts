@@ -26,6 +26,9 @@ export class Auth {
     }`;
   }
 
+  // Spotify's token endpoint requires the OAuth parameters in an
+  // application/x-www-form-urlencoded body; sending them as query
+  // parameters is undocumented legacy behavior that their edge can reject.
   public async authorizationCode(
     clientID: string,
     clientSecret: string,
@@ -37,11 +40,12 @@ export class Auth {
       .withHost('accounts.spotify.com')
       .withScheme('https')
       .withHeaders({
-        Authorization: `Basic ${Buffer.from(`${clientID}:${clientSecret}`).toString('base64')}`
+        Authorization: `Basic ${Buffer.from(`${clientID}:${clientSecret}`).toString('base64')}`,
+        'Content-Type': 'application/x-www-form-urlencoded'
       })
       .withMethod(HttpMethods.POST)
       .withPath('/api/token')
-      .withQueryParameters({
+      .withBodyParameters({
         code,
         grant_type: 'authorization_code',
         redirect_uri: redirectURI
@@ -60,11 +64,12 @@ export class Auth {
       .withHost('accounts.spotify.com')
       .withScheme('https')
       .withHeaders({
-        Authorization: `Basic ${Buffer.from(`${clientID}:${clientSecret}`).toString('base64')}`
+        Authorization: `Basic ${Buffer.from(`${clientID}:${clientSecret}`).toString('base64')}`,
+        'Content-Type': 'application/x-www-form-urlencoded'
       })
       .withMethod(HttpMethods.POST)
       .withPath('/api/token')
-      .withQueryParameters({
+      .withBodyParameters({
         grant_type: 'refresh_token',
         refresh_token: refreshToken
       })
