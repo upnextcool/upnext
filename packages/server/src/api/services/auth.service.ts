@@ -56,7 +56,7 @@ export class AuthService {
     }
 
     if (!partyId || !validator.isUUID(partyId)) {
-      throw new Error('Invalid User ID');
+      throw new Error('Invalid Party ID');
     }
 
     const user = await this._userService.getById(userId);

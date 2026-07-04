@@ -17,13 +17,18 @@ export class ErrorMiddleware implements ExpressErrorMiddlewareInterface {
     const GENERIC_ERROR_CODE = 500;
     response.status(error.httpCode || GENERIC_ERROR_CODE);
     if (environment.isProduction) {
+      // The message is operational ("Insufficient client scope", "User not
+      // registered", ...) and is what makes a failure diagnosable; only the
+      // stack stays server-side.
       response.json({
+        message: error.message,
         name: error.name,
       });
     } else {
       response.json({
         message: error.message,
         name: error.name,
+        stack: error.stack,
       });
     }
 
