@@ -4,6 +4,7 @@
 
 import { environment } from '../environment';
 import { Logger } from '../util/logger';
+import { getMetadataStorage } from 'class-validator';
 import { validationMetadatasToSchemas } from 'class-validator-jsonschema';
 import { MicroframeworkLoader, MicroframeworkSettings } from 'microframework';
 import { getMetadataArgsStorage } from 'routing-controllers';
@@ -18,34 +19,45 @@ export const SwaggerLoader: MicroframeworkLoader = (settings: MicroframeworkSett
 
   if (settings && environment.swagger.enabled) {
     log.info('Loading Swagger');
-    const expressApp = settings.getData('express_app');
-    const schemas = validationMetadatasToSchemas();
-    const swaggerFile = routingControllersToSpec(
-      getMetadataArgsStorage(),
-      {},
-      {
-        components: {
-          schemas,
-        },
-        info: {
-          description: environment.app.description,
-          title: environment.app.name,
-          version: environment.app.version,
-        },
-        servers: [
-          {
-            url: `${url}/${environment.api.route}`,
+    // API docs are non-essential: if spec generation blows up (historically
+    // from a class-validator / class-validator-jsonschema version mismatch in
+    // a stale install), log it and boot without docs instead of crashing.
+    try {
+      const expressApp = settings.getData('express_app');
+      // Pass the storage from the same class-validator instance the models
+      // registered with, rather than letting the library look it up.
+      const schemas = validationMetadatasToSchemas({
+        classValidatorMetadataStorage: getMetadataStorage(),
+      });
+      const swaggerFile = routingControllersToSpec(
+        getMetadataArgsStorage(),
+        {},
+        {
+          components: {
+            schemas,
           },
-        ],
-      },
-    );
-    expressApp.use(
-      `/${environment.swagger.route}`,
-      (
-        request, response, next
-      ) => next(),
-      swaggerUi.serve,
-      swaggerUi.setup(swaggerFile),
-    );
+          info: {
+            description: environment.app.description,
+            title: environment.app.name,
+            version: environment.app.version,
+          },
+          servers: [
+            {
+              url: `${url}/${environment.api.route}`,
+            },
+          ],
+        },
+      );
+      expressApp.use(
+        `/${environment.swagger.route}`,
+        (
+          request, response, next
+        ) => next(),
+        swaggerUi.serve,
+        swaggerUi.setup(swaggerFile),
+      );
+    } catch (error) {
+      log.error('Swagger failed to initialize; continuing without API docs.', error);
+    }
   }
 };
