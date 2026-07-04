@@ -21,7 +21,12 @@
     </v-container>
     <v-list dense v-if="queue" color="transparent" class="ma-0 pa-0 mt-16">
       <template v-for="(item, index) in sortedQueue">
-        <app-vote-dialog :key="index" :item="item" />
+        <app-vote-dialog
+          :key="index"
+          :item="item"
+          :my-member-id="me && me.id"
+          @removed="removeLocally"
+        />
       </template>
     </v-list>
     <v-list dense v-else color="transparent" class="ma-0 pa-0 mt-16">
@@ -37,6 +42,7 @@
 
 <script>
 import {
+  ME,
   NEW_SONG_IN_QUEUE,
   QUEUE,
   QUEUE_DOWNVOTE,
@@ -51,6 +57,7 @@ export default {
   components: { AppQueueMenu, AppVoteDialog },
   data: () => ({
     queue: null,
+    me: null,
   }),
   created() {
     this.$watch(
@@ -85,8 +92,17 @@ export default {
         .map((e) => (e.type === 'UP_VOTE' ? 1 : -1))
         .reduce((p, c) => p + c, 0);
     },
+    // Drop the entry immediately after a successful remove; the
+    // QUEUE_REMOVE_SONG subscription event that follows is a no-op here.
+    removeLocally(entryId) {
+      if (!this.queue) {
+        return;
+      }
+      this.queue = this.queue.filter((q) => q.id !== entryId);
+    },
   },
   apollo: {
+    me: ME,
     $subscribe: {
       newSong: {
         query: NEW_SONG_IN_QUEUE,

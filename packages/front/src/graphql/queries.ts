@@ -113,6 +113,15 @@ export const VALID_TOKEN = gql`
   }
 `;
 
+export const ME = gql`
+  query {
+    me {
+      id
+      username
+    }
+  }
+`;
+
 export const GET_PARTY_STATE = gql`
   query {
     partyState {

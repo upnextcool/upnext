@@ -59,17 +59,42 @@ export class UpNextService {
   // returns the same data) to avoid re-hitting Spotify on every add / lookup.
   private readonly _trackCache = new BoundedCache<Track>(1000, 6 * 60 * 60 * 1000);
 
+  // Catalog/browse responses are identical for every member and change rarely,
+  // so cache them too: the search and view pages request these per member per
+  // visit, and the caches collapse that fan-out into one Spotify call per TTL.
+  private readonly _albumCache = new BoundedCache<Album>(300, 60 * 60 * 1000);
+
+  private readonly _artistCache = new BoundedCache<FullArtist>(300, 30 * 60 * 1000);
+
+  private readonly _playlistCache = new BoundedCache<PlaylistObject>(200, 5 * 60 * 1000);
+
+  private readonly _featuredPlaylistsCache = new BoundedCache<FeaturedPlaylists>(1, 15 * 60 * 1000);
+
+  private readonly _recommendationsCache = new BoundedCache<RecommendationsResponse>(100, 10 * 60 * 1000);
+
   private getTrackCached(token: string, songId: string): Promise<Track> {
     return this._trackCache.getOrLoad(songId, () =>
       this._spotifyService.spotifyApis.tracks.getTrack(token, songId)
     );
   }
 
+  private static readonly MAX_USERNAME_LENGTH = 24;
+
   async joinParty(
     partyCode: string,
     username: string,
     userId: string
   ): Promise<string> {
+    const cleanUsername = username?.trim() ?? '';
+    if (cleanUsername.length === 0) {
+      throw new Error('Pick a name so the party knows who you are');
+    }
+    if (cleanUsername.length > UpNextService.MAX_USERNAME_LENGTH) {
+      throw new Error(
+        `Names are capped at ${UpNextService.MAX_USERNAME_LENGTH} characters`
+      );
+    }
+
     const user = await this._userService.getById(userId);
     const party = await this._partyService.getByCode(partyCode);
 
@@ -90,7 +115,7 @@ export class UpNextService {
     const member = await this._memberService.new({
       party,
       user,
-      username,
+      username: cleanUsername,
     });
 
     return this._tokenService.generate<AccessToken>({ memberId: member.id });
@@ -127,20 +152,28 @@ export class UpNextService {
     recommendedTracks: RecommendationsResponse;
   }> {
     const spotifyAccount = await this._partyService.getSpotifyAccountFor(party);
-    const recommendedPlaylists =
-      await this._spotifyService.spotifyApis.browse.getFeaturedPlaylists(
-        spotifyAccount.token
-      );
+    const recommendedPlaylists = await this._featuredPlaylistsCache.getOrLoad(
+      'featured',
+      () =>
+        this._spotifyService.spotifyApis.browse.getFeaturedPlaylists(
+          spotifyAccount.token
+        )
+    );
     const previousSongs = await this._partyService.getHistoryFor(party);
     const lastFiveIds = previousSongs
       .sort((a, b) => dayjs(b.playedAt).diff(dayjs(a.playedAt)))
       .map((e) => e.spotifyId)
       .slice(0, 5);
-    const recommendedTracks =
-      await this._spotifyService.spotifyApis.browse.getRecommendationsFromTracks(
-        spotifyAccount.token,
-        lastFiveIds
-      );
+    // Keyed by the seed tracks, so the cache refreshes as soon as the party's
+    // recent history actually changes.
+    const recommendedTracks = await this._recommendationsCache.getOrLoad(
+      lastFiveIds.join(','),
+      () =>
+        this._spotifyService.spotifyApis.browse.getRecommendationsFromTracks(
+          spotifyAccount.token,
+          lastFiveIds
+        )
+    );
     return { recommendedPlaylists, recommendedTracks };
   }
 
@@ -149,17 +182,20 @@ export class UpNextService {
     playlistId: string
   ): Promise<PlaylistObject> {
     const spotifyAccount = await this._partyService.getSpotifyAccountFor(party);
-    const playlist =
-      await this._spotifyService.spotifyApis.playlist.getPlaylist(
-        spotifyAccount.token,
-        playlistId
-      );
-    const tracks = await this._spotifyService.spotifyApis.playlist.getAllTracks(
-      spotifyAccount.token,
-      playlist.id
-    );
-    playlist.tracks = tracks;
-    return playlist;
+    return this._playlistCache.getOrLoad(playlistId, async () => {
+      const playlist =
+        await this._spotifyService.spotifyApis.playlist.getPlaylist(
+          spotifyAccount.token,
+          playlistId
+        );
+      const tracks =
+        await this._spotifyService.spotifyApis.playlist.getAllTracks(
+          spotifyAccount.token,
+          playlist.id
+        );
+      playlist.tracks = tracks;
+      return playlist;
+    });
   }
 
   getPartyState(party: Party): PartyState | null {
@@ -176,32 +212,38 @@ export class UpNextService {
 
   async getSpotifyAlbum(party: Party, albumId: string): Promise<Album> {
     const spotifyAccount = await this._partyService.getSpotifyAccountFor(party);
-    return this._spotifyService.spotifyApis.albums.getAlbum(
-      spotifyAccount.token,
-      albumId
+    return this._albumCache.getOrLoad(albumId, () =>
+      this._spotifyService.spotifyApis.albums.getAlbum(
+        spotifyAccount.token,
+        albumId
+      )
     );
   }
 
   async getSpotifyArtist(party: Party, artistId: string): Promise<FullArtist> {
     const spotifyAccount = await this._partyService.getSpotifyAccountFor(party);
-    const artist = await this._spotifyService.spotifyApis.artists.getArtist(
-      spotifyAccount.token,
-      artistId
-    );
-    const tracks = await this._spotifyService.spotifyApis.artists.getTopTracks(
-      spotifyAccount.token,
-      artistId
-    );
-    const albums = await this._spotifyService.spotifyApis.artists.getAllAlbums(
-      spotifyAccount.token,
-      artistId
-    );
-    const cleanedAlbums = this.cleanAlbums(albums);
-    return {
-      albums: cleanedAlbums,
-      info: artist,
-      tracks,
-    };
+    return this._artistCache.getOrLoad(artistId, async () => {
+      const artist = await this._spotifyService.spotifyApis.artists.getArtist(
+        spotifyAccount.token,
+        artistId
+      );
+      const tracks =
+        await this._spotifyService.spotifyApis.artists.getTopTracks(
+          spotifyAccount.token,
+          artistId
+        );
+      const albums =
+        await this._spotifyService.spotifyApis.artists.getAllAlbums(
+          spotifyAccount.token,
+          artistId
+        );
+      const cleanedAlbums = this.cleanAlbums(albums);
+      return {
+        albums: cleanedAlbums,
+        info: artist,
+        tracks,
+      };
+    });
   }
 
   async addToPlaylist(
@@ -219,6 +261,26 @@ export class UpNextService {
       party,
       spotifyId: x.id,
     });
+  }
+
+  // Members can take back a song they queued by mistake. Ownership implies
+  // same party (a member belongs to exactly one), so no extra party check is
+  // needed. The QUEUE_REMOVE_SONG event published by the entry service tells
+  // every member's queue view to drop it.
+  async removeFromPlaylist(
+    party: Party,
+    member: Member,
+    entryId: string
+  ): Promise<PlaylistEntry> {
+    const entry = await this._playlistEntryService.getById(entryId);
+    if (!entry) {
+      throw new Error('That song is no longer in the queue');
+    }
+    if (entry.addedBy?.id !== member.id) {
+      throw new Error('Only the person who added a song can remove it');
+    }
+    await this._playlistEntryService.remove(entry, party);
+    return entry;
   }
 
   async upvote(member: Member, entryId: string): Promise<PlaylistEntry> {

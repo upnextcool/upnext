@@ -49,6 +49,14 @@ export const ADD_TO_QUEUE = gql`
   }
 `;
 
+export const REMOVE_FROM_QUEUE = gql`
+  mutation ($entryId: String!) {
+    removeFromQueue(entryId: $entryId) {
+      id
+    }
+  }
+`;
+
 export const UPVOTE_SONG = gql`
   mutation ($entryId: String!) {
     upvote(entryId: $entryId) {

@@ -75,6 +75,14 @@ export class UpNextResolver {
     return !!context.member;
   }
 
+  // The calling member's own identity, so the client can tell which queue
+  // entries (and votes) are theirs.
+  @Query(() => Member)
+  @Authorized()
+  async me(@Ctx() context: Context): Promise<Member> {
+    return context.member;
+  }
+
   @Query(() => [ Member ])
   @Authorized()
   async members(@Ctx() context: Context): Promise<Array<Member>> {
@@ -213,6 +221,20 @@ export class UpNextResolver {
     });
 
     return songId;
+  }
+
+  @Mutation(() => PlaylistEntry)
+  @Authorized()
+  async removeFromQueue(
+    @Ctx() context: Context,
+    @Arg('entryId') entryId: string,
+  ): Promise<PlaylistEntry> {
+    // The QUEUE_REMOVE_SONG event is published inside the entry service.
+    return this._upNextService.removeFromPlaylist(
+      context.party,
+      context.member,
+      entryId
+    );
   }
 
   @Mutation(() => PlaylistEntry)

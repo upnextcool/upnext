@@ -61,10 +61,19 @@ export class PartyService {
     return p.spotifyAccount;
   }
 
+  private static readonly MAX_NAME_LENGTH = 50;
+
   async createParty(name: string): Promise<Party> {
+    const cleanName = name?.trim() ?? '';
+    if (cleanName.length === 0) {
+      throw new Error('Give your party a name');
+    }
+    if (cleanName.length > PartyService.MAX_NAME_LENGTH) {
+      throw new Error(`Party names are capped at ${PartyService.MAX_NAME_LENGTH} characters`);
+    }
     return this._partyRepository.save({
       code: await this.generateUniqueCode(),
-      name,
+      name: cleanName,
       spotifyPlaylistId: ''
     });
   }

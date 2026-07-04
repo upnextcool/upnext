@@ -5,7 +5,7 @@
 import { Member, Party, PlaylistEntry } from '../models';
 import { PartyService } from '../services';
 import { Context } from '../types';
-import { Arg, Ctx, FieldResolver, Mutation, Query, Resolver, ResolverInterface, Root } from 'type-graphql';
+import { Arg, Authorized, Ctx, FieldResolver, Mutation, Query, Resolver, ResolverInterface, Root } from 'type-graphql';
 import { Service } from 'typedi';
 
 @Service()
@@ -24,11 +24,16 @@ export class PartyResolver implements ResolverInterface<Party>{
     return this._partyService.getByCode(code);
   }
 
+  // Gated: partyById/partyByCode are deliberately public (the join screen
+  // previews a party by its 4-digit code), but who's at a party and what's
+  // queued should only be visible to its members.
+  @Authorized()
   @FieldResolver(() => [ Member ])
   async members (@Root() party: Party, @Ctx() ctx: Context): Promise<Array<Member>> {
     return ctx?.loaders?.membersByPartyId?.load(party.id) ?? this._partyService.getMembersFor(party);
   }
 
+  @Authorized()
   @FieldResolver(() => [ PlaylistEntry ])
   async playlist(@Root() party: Party, @Ctx() ctx: Context): Promise<Array<PlaylistEntry>> {
     return ctx?.loaders?.playlistByPartyId?.load(party.id) ?? this._partyService.getPlaylistFor(party);
