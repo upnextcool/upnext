@@ -15,6 +15,10 @@ This is an Nx monorepo with two packages:
 
 ## Development
 
+Requires **Node >= 20.11.1** (Node 20 or 22 LTS; pinned in `.nvmrc`). The
+GraphQL stack (type-graphql 2) uses `node:`-prefixed imports, so older Node
+versions fail at server startup with `Cannot find module 'node:path'`.
+
 ```sh
 yarn install
 yarn start:server   # nx serve server

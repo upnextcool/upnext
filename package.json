@@ -124,5 +124,8 @@
   },
   "resolutions": {
     "http-cache-semantics": "^4.1.1"
+  },
+  "engines": {
+    "node": ">=20.11.1"
   }
 }
