@@ -5,7 +5,7 @@
 import { Member, Party, PlaylistEntry, Vote } from '../models';
 import { Service } from 'typedi';
 import { DataSource, Repository } from 'typeorm';
-import {UpNextPubSubEngine} from "../pubsub/pubsub";
+import { Topic, UpNextPubSubEngine } from '../pubsub/pubsub';
 
 @Service()
 export class PlaylistEntryService {
@@ -55,8 +55,11 @@ export class PlaylistEntryService {
     return this._playlistEntryRepository.save(entry);
   }
 
-  async remove(nextSong: PlaylistEntry): Promise<void> {
-    await UpNextPubSubEngine.instance.engine.publish('QUEUE_REMOVE_SONG', nextSong);
+  async remove(nextSong: PlaylistEntry, party: Party): Promise<void> {
+    UpNextPubSubEngine.instance.engine.publish(Topic.QUEUE_REMOVE_SONG, {
+      entry: nextSong,
+      partyId: party.id,
+    });
     await this._playlistEntryRepository.remove(nextSong);
   }
 }

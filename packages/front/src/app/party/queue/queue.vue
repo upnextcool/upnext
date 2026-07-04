@@ -65,7 +65,7 @@ export default {
     sortedQueue() {
       return this.queue
         .map((q) => ({ ...q, score: this.processVotes(q.votes) }))
-        .sort((a, b) => dayjs(a).diff(dayjs(b)))
+        .sort((a, b) => dayjs(a.addedAt).diff(dayjs(b.addedAt)))
         .sort((a, b) => b.score - a.score);
     },
   },
@@ -91,12 +91,21 @@ export default {
       newSong: {
         query: NEW_SONG_IN_QUEUE,
         result({ data }) {
+          if (!this.queue) {
+            return;
+          }
+          if (this.queue.some((q) => q.id === data.newSongInQueue.id)) {
+            return;
+          }
           this.queue.push(data.newSongInQueue);
         },
       },
       removeSong: {
         query: REMOVE_SONG_FROM_QUEUE,
         result({ data }) {
+          if (!this.queue) {
+            return;
+          }
           this.queue = this.queue.filter(
             (q) => q.id !== data.removeSongFromQueue.id
           );
@@ -105,6 +114,9 @@ export default {
       upvote: {
         query: QUEUE_UPVOTE,
         result({ data }) {
+          if (!this.queue) {
+            return;
+          }
           const entryToUpdate = data.queueUpvote;
           this.queue = this.queue.map((q) =>
             q.id === entryToUpdate.id ? entryToUpdate : q
@@ -114,6 +126,9 @@ export default {
       downvote: {
         query: QUEUE_DOWNVOTE,
         result({ data }) {
+          if (!this.queue) {
+            return;
+          }
           const entryToUpdate = data.queueDownvote;
           this.queue = this.queue.map((q) =>
             q.id === entryToUpdate.id ? entryToUpdate : q

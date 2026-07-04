@@ -26,6 +26,18 @@ export class MemberService {
     });
   }
 
+  async getByIdWithUserAndParty(id: string): Promise<Member> {
+    return this._memberRepository.findOne({
+      relations: [
+        'party',
+        'user'
+      ],
+      where: {
+        id
+      }
+    });
+  }
+
   async getByUser(user: User): Promise<Member> {
     return this._memberRepository.findOne({
       where: {

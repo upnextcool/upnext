@@ -60,7 +60,7 @@
         </v-row>
       </v-col>
     </v-container>
-    <v-container v-else-if="error" fluid class="fill-height">
+    <v-container v-else-if="error || loaded" fluid class="fill-height">
       <v-col cols="12">
         <v-row align="center" justify="center">
           <v-sheet class="text-center" elevation="0" color="transparent">
@@ -101,6 +101,7 @@ export default {
   data: () => ({
     partyState: null,
     error: false,
+    loaded: false,
     partyStateLoop: null,
   }),
   created() {
@@ -112,7 +113,9 @@ export default {
       { immediate: true }
     );
   },
-
+  beforeDestroy() {
+    clearInterval(this.partyStateLoop);
+  },
   methods: {
     async setupPlayingState() {
       try {
@@ -124,18 +127,27 @@ export default {
         });
 
         this.partyState = currentPartyState;
+        this.loaded = true;
 
-        clearInterval(this.partyStateLoop);
-        this.partyStateLoop = setInterval(() => {
-          if (this.partyState.progress > this.partyState.duration) {
-            this.partyState.progress = this.partyState.duration;
-          } else {
-            this.partyState.progress += 200;
-          }
-        }, 200);
+        if (this.partyState) {
+          this.startProgressLoop();
+        }
       } catch {
         this.error = true;
       }
+    },
+    startProgressLoop() {
+      clearInterval(this.partyStateLoop);
+      this.partyStateLoop = setInterval(() => {
+        if (!this.partyState || !this.partyState.playing) {
+          return;
+        }
+        if (this.partyState.progress > this.partyState.duration) {
+          this.partyState.progress = this.partyState.duration;
+        } else {
+          this.partyState.progress += 200;
+        }
+      }, 200);
     },
   },
   computed: {
@@ -171,6 +183,7 @@ export default {
         query: PLAYER_PAUSED,
         result({ data: { playerPaused: state} }) {
           this.partyState = state;
+          this.loaded = true;
           clearInterval(this.partyStateLoop);
           },
       },
@@ -178,14 +191,8 @@ export default {
         query: PLAYER_PLAYED,
         result({ data: { playerPlayed: state} }) {
           this.partyState = state;
-          clearInterval(this.partyStateLoop);
-          this.partyStateLoop = setInterval(() => {
-            if (this.partyState.progress > this.partyState.duration) {
-              this.partyState.progress = this.partyState.duration;
-            } else {
-              this.partyState.progress += 200;
-            }
-          }, 200);
+          this.loaded = true;
+          this.startProgressLoop();
         },
       },
     },

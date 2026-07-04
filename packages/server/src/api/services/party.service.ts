@@ -37,10 +37,17 @@ export class PartyService {
   }
 
   async getPlaylistFor(party: Party): Promise<Array<PlaylistEntry>> {
+    // Preload everything the queue view needs in one query, so the
+    // field resolvers don't fire an extra query per entry.
     const p = await this._partyRepository.findOne({ relations: [
       'playlist',
-      'playlist.votes'
+      'playlist.addedBy',
+      'playlist.votes',
+      'playlist.votes.member'
     ], where: { id: party.id } });
+    p.playlist.forEach(entry => {
+      entry.party = p;
+    });
     return p.playlist;
   }
 
@@ -56,15 +63,28 @@ export class PartyService {
 
   async createParty(name: string): Promise<Party> {
     return this._partyRepository.save({
-      code: this.generateCode(),
+      code: await this.generateUniqueCode(),
       name,
       spotifyPlaylistId: ''
     });
   }
 
   private generateCode(): string {
-    const ALL = '1234567890'.toUpperCase();
-    return [ ...'XXXX' ].map(() => ALL[Math.floor(Math.random() * ALL.length)]).join('');
+    const DIGITS = '0123456789';
+    return [ ...'XXXX' ].map(() => DIGITS[Math.floor(Math.random() * DIGITS.length)]).join('');
+  }
+
+  // Codes are only 4 digits, so collisions with live parties are a real
+  // possibility — retry until we find a free one instead of silently
+  // creating two parties that answer to the same code.
+  private async generateUniqueCode(attempt = 0): Promise<string> {
+    const MAX_ATTEMPTS = 25;
+    if (attempt >= MAX_ATTEMPTS) {
+      throw new Error('Unable to allocate a unique party code');
+    }
+    const code = this.generateCode();
+    const existing = await this.getByCode(code);
+    return existing ? this.generateUniqueCode(attempt + 1) : code;
   }
 
   async updateParty(party: Partial<Party>) {

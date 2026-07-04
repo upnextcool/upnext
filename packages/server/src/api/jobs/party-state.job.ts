@@ -11,35 +11,34 @@ export class PartyStateJob {
   @Inject()
   private readonly _upNextService: UpNextService;
 
-
   @Inject()
   private readonly _partyService: PartyService;
 
   @Inject()
   private readonly _partyStateService: PartyStateService;
 
-  // Guards against overlapping runs: this job fires every second, but a slow
-  // Spotify response (more likely under load) can make a pass take longer than
-  // that. Without the guard, ticks stack up and pile on DB/HTTP work.
-  private _running = false;
+  // Guards against overlapping polls: this job fires every second, but a slow
+  // Spotify response (more likely under load) can make a party's poll take
+  // longer than that. Tracking in-flight parties individually means one slow
+  // party skips its next tick without stalling polling for the others.
+  private readonly _inFlight = new Set<string>();
 
   @Cron(
     'update-party-state', '*/1 * * * * *'
   )
   async updatePartyState(): Promise<void> {
-    if (this._running) {
-      return;
-    }
-    this._running = true;
-    try {
-      const parties = await this._partyService.getAll();
-      const activeParties = parties.filter(p => p.spotifyAccount);
-      this._partyStateService.pruneExcept(new Set(activeParties.map(p => p.id)));
-      await Promise.all(
-        activeParties.map(async party => this._upNextService.partyLoopStuff(party))
-      );
-    } finally {
-      this._running = false;
-    }
+    const parties = await this._partyService.getAll();
+    const activeParties = parties.filter(p => p.spotifyAccount);
+    this._partyStateService.pruneExcept(new Set(activeParties.map(p => p.id)));
+    await Promise.allSettled(activeParties
+      .filter(party => !this._inFlight.has(party.id))
+      .map(async party => {
+        this._inFlight.add(party.id);
+        try {
+          await this._upNextService.partyLoopStuff(party);
+        } finally {
+          this._inFlight.delete(party.id);
+        }
+      }));
   }
 }

@@ -256,17 +256,20 @@ export default {
       if (!this.query || this.query === '') {
         this.results = null;
         this.query = '';
+        this.searching = false;
         return;
       }
-      const { data } = await this.$apollo.query({
-        query: SPOTIFY_SEARCH,
-        // fetchPolicy: "network-only",
-        variables: {
-          query: this.query,
-        },
-      });
-      this.results = data.spotifySearch;
-      this.searching = false;
+      try {
+        const { data } = await this.$apollo.query({
+          query: SPOTIFY_SEARCH,
+          variables: {
+            query: this.query,
+          },
+        });
+        this.results = data.spotifySearch;
+      } finally {
+        this.searching = false;
+      }
     },
   },
   computed: {
@@ -281,7 +284,7 @@ export default {
     },
   },
   beforeRouteUpdate(to, from, next) {
-    this.query = to.query?.q;
+    this.query = to.query?.q ?? '';
     this.search();
     next();
   },

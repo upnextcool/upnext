@@ -1,6 +1,6 @@
 import router from '../../router';
 import VueApollo from 'vue-apollo';
-import { ApolloClient, HttpLink, InMemoryCache, split } from '@apollo/client/core';
+import { ApolloClient, ApolloLink, HttpLink, InMemoryCache, split } from '@apollo/client/core';
 import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
 import { getMainDefinition } from '@apollo/client/utilities';
 import { createClient } from 'graphql-ws';
@@ -11,13 +11,23 @@ export function getProvider() {
 
   const httpLink = new HttpLink({
     uri: serviceUrl(),
-    headers: {
-      Authorization: localStorage.getItem('token') || '',
-    },
+  });
+
+  // Read the token per-request instead of once at startup, so a login/join
+  // that happens after the app boots is picked up without a page reload.
+  const authLink = new ApolloLink((operation, forward) => {
+    operation.setContext({
+      headers: {
+        Authorization: localStorage.getItem('token') || '',
+      },
+    });
+    return forward(operation);
   });
 
   // Subscriptions over the modern graphql-ws protocol to match the server.
-  // The auth token is sent as a connection param the server reads on connect.
+  // The auth token is sent as a connection param the server reads on connect;
+  // graphql-ws connects lazily (on the first subscription), so the token from
+  // joining a party is available by the time connectionParams is evaluated.
   const wsLink = new GraphQLWsLink(
     createClient({
       connectionParams: () => ({
@@ -36,7 +46,7 @@ export function getProvider() {
       );
     },
     wsLink,
-    httpLink
+    authLink.concat(httpLink)
   );
 
   const apolloClient = new ApolloClient({
