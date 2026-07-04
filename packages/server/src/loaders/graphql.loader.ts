@@ -3,6 +3,7 @@
  */
 import { authChecker } from '../api/auth/auth';
 import { context } from '../api/auth/context';
+import { validateTokenAndGetState } from '../api/auth/util';
 import { environment } from '../environment';
 import { Logger } from '../util/logger';
 import * as Resolvers from '../api/resolvers';
@@ -55,6 +56,14 @@ export const GraphqlLoader: MicroframeworkLoader = async (settings: Microframewo
     const ss = new SubscriptionServer(
       {
         execute,
+        // Keep intermediary proxies and mobile connections from silently
+        // dropping idle sockets.
+        keepAlive: 15_000,
+        // Authenticate the websocket once at connection time; the resolved
+        // state becomes the context for every subscription on this socket,
+        // which the per-party subscription filters rely on.
+        onConnect: (connectionParams: { Authorization?: string }) =>
+          validateTokenAndGetState(connectionParams?.Authorization),
         schema,
         subscribe,
       }, {

@@ -31,7 +31,7 @@ import {
   VoteTypeEnum,
 } from '../types';
 import { Service } from 'typedi';
-import { UpNextPubSubEngine } from '../pubsub/pubsub';
+import { Topic, UpNextPubSubEngine } from '../pubsub/pubsub';
 import dayjs from 'dayjs';
 
 export interface FullArtist {
@@ -122,7 +122,7 @@ export class UpNextService {
       );
     const previousSongs = await this._partyService.getHistoryFor(party);
     const lastFiveIds = previousSongs
-      .sort((a, b) => dayjs(a.playedAt).diff(dayjs(b.playedAt)))
+      .sort((a, b) => dayjs(b.playedAt).diff(dayjs(a.playedAt)))
       .map((e) => e.spotifyId)
       .slice(0, 5);
     const recommendedTracks =
@@ -151,8 +151,8 @@ export class UpNextService {
     return playlist;
   }
 
-  getPartyState(party: Party): PartyState {
-    return this._partyStateService.getStateFor(party).partyState;
+  getPartyState(party: Party): PartyState | null {
+    return this._partyStateService.getStateFor(party)?.partyState ?? null;
   }
 
   async searchSpotify(party: Party, query: string): Promise<SearchResultAll> {
@@ -223,6 +223,9 @@ export class UpNextService {
 
   private async vote(entryId: string, member: Member, voteType: VoteTypeEnum) {
     const entry = await this._playlistEntryService.getById(entryId);
+    if (!entry) {
+      throw new Error('That song is no longer in the queue');
+    }
     const memberVotes = entry.votes.filter(
       (mvEntry) => mvEntry.member.id === member.id
     );
@@ -238,7 +241,9 @@ export class UpNextService {
       playlistEntry: entry,
       type: voteType,
     });
-    return entry;
+    // Re-fetch so callers (and subscription payloads) see the new vote
+    // instead of the counts from before this mutation.
+    return this._playlistEntryService.getById(entryId);
   }
 
   private oppositeOf(voteType: VoteTypeEnum): VoteTypeEnum {
@@ -297,16 +302,16 @@ export class UpNextService {
   ): Promise<void> {
     switch (currentPartyState) {
       case PartyStateEnum.PLAYING:
-        await UpNextPubSubEngine.instance.engine.publish(
-          'PLAYER_PLAYED',
-          computedPartyState
-        );
+        await UpNextPubSubEngine.instance.engine.publish(Topic.PLAYER_PLAYED, {
+          partyId: party.id,
+          state: computedPartyState,
+        });
         break;
       case PartyStateEnum.PAUSED:
-        await UpNextPubSubEngine.instance.engine.publish(
-          'PLAYER_PAUSED',
-          computedPartyState
-        );
+        await UpNextPubSubEngine.instance.engine.publish(Topic.PLAYER_PAUSED, {
+          partyId: party.id,
+          state: computedPartyState,
+        });
         break;
     }
   }
@@ -365,7 +370,7 @@ export class UpNextService {
         spotifyAccount.token,
         nextSong.spotifyId
       );
-      await this._playlistEntryService.remove(nextSong);
+      await this._playlistEntryService.remove(nextSong, party);
       this._partyStateService.setNextSongQueued(party, nextSong.spotifyId);
     }
     return this._partyStateService.updateState(previousPartyState, {

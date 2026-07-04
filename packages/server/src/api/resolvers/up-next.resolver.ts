@@ -13,7 +13,8 @@ import {
   SearchResultAll,
   Track
 } from '../spotify';
-import {Context, PartyState} from '../types';
+import { Context } from '../types';
+import { PlayerEventPayload, QueueEventPayload, Topic } from '../pubsub/pubsub';
 import GraphQLJSON from 'graphql-type-json';
 import {
   Arg,
@@ -23,11 +24,21 @@ import {
   PubSub,
   Query,
   Resolver,
+  ResolverFilterData,
   Subscription,
   PubSubEngine,
   Root
 } from 'type-graphql';
 import { Service } from 'typedi';
+
+// Only deliver events to subscribers that belong to the party the event
+// happened in. The subscription context comes from the websocket onConnect
+// handler, which validates the member token.
+const samePartyFilter = ({
+  payload,
+  context,
+}: ResolverFilterData<{ partyId: string }, unknown, Context>): boolean =>
+  !!context?.party && payload.partyId === context.party.id;
 
 @Service()
 @Resolver()
@@ -199,7 +210,10 @@ export class UpNextResolver {
       songId
     );
 
-    await pubSub.publish('QUEUE_NEW_SONG', entry);
+    await pubSub.publish(Topic.QUEUE_NEW_SONG, {
+      entry,
+      partyId: context.party.id,
+    });
 
     return songId;
   }
@@ -214,8 +228,11 @@ export class UpNextResolver {
     const entry = await this._upNextService.upvote(
       context.member,
       entryId
-    )
-    await pubSub.publish('QUEUE_UPVOTE', entry);
+    );
+    await pubSub.publish(Topic.QUEUE_UPVOTE, {
+      entry,
+      partyId: context.party.id,
+    });
 
     return entry;
   }
@@ -232,64 +249,73 @@ export class UpNextResolver {
       entryId
     );
 
-    await pubSub.publish('QUEUE_DOWNVOTE', entry);
+    await pubSub.publish(Topic.QUEUE_DOWNVOTE, {
+      entry,
+      partyId: context.party.id,
+    });
 
     return entry;
   }
 
   // Subscriptions
-  @Subscription({
-    topics: "QUEUE_NEW_SONG"
+  @Subscription(() => PlaylistEntry, {
+    filter: samePartyFilter,
+    topics: Topic.QUEUE_NEW_SONG
   })
   newSongInQueue(
-    @Root() entry: PlaylistEntry,
+    @Root() payload: QueueEventPayload,
   ): PlaylistEntry {
-    return entry;
+    return payload.entry;
   }
 
-  @Subscription({
-    topics: "QUEUE_REMOVE_SONG"
+  @Subscription(() => PlaylistEntry, {
+    filter: samePartyFilter,
+    topics: Topic.QUEUE_REMOVE_SONG
   })
   removeSongFromQueue(
-    @Root() entry: PlaylistEntry,
+    @Root() payload: QueueEventPayload,
   ): PlaylistEntry {
-    return entry;
+    return payload.entry;
   }
 
 
-  @Subscription({
-    topics: "QUEUE_UPVOTE"
+  @Subscription(() => PlaylistEntry, {
+    filter: samePartyFilter,
+    topics: Topic.QUEUE_UPVOTE
   })
   queueUpvote(
-    @Root() entry: PlaylistEntry,
+    @Root() payload: QueueEventPayload,
   ): PlaylistEntry {
-    return entry;
+    return payload.entry;
   }
 
-  @Subscription({
-    topics: "QUEUE_DOWNVOTE"
+  @Subscription(() => PlaylistEntry, {
+    filter: samePartyFilter,
+    topics: Topic.QUEUE_DOWNVOTE
   })
   queueDownvote(
-    @Root() entry: PlaylistEntry,
+    @Root() payload: QueueEventPayload,
   ): PlaylistEntry {
-    return entry;
+    return payload.entry;
   }
 
-  @Subscription({
-    topics: "PLAYER_PAUSED"
+  @Subscription(() => PartyStateOutput, {
+    filter: samePartyFilter,
+    topics: Topic.PLAYER_PAUSED
   })
   playerPaused(
-    @Root() state: PartyStateOutput,
+    @Root() payload: PlayerEventPayload,
   ): PartyStateOutput {
-    return state;
+    return payload.state;
   }
 
-  @Subscription({
-    topics: "PLAYER_PLAYED"
+  @Subscription(() => PartyStateOutput, {
+    filter: samePartyFilter,
+    topics: Topic.PLAYER_PLAYED
   })
   playerPlayed(
-    @Root() state: PartyStateOutput,
+    @Root() payload: PlayerEventPayload,
   ): PartyStateOutput {
-    return state;
+    return payload.state;
   }
 }

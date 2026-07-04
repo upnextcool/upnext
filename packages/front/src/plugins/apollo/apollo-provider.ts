@@ -2,7 +2,7 @@ import router from '../../router';
 import VueApollo from 'vue-apollo';
 import ApolloClient from 'apollo-client';
 import { HttpLink } from 'apollo-link-http';
-import { split } from 'apollo-link';
+import { ApolloLink, split } from 'apollo-link';
 import { WebSocketLink } from 'apollo-link-ws';
 import { getMainDefinition } from 'apollo-utilities';
 import { InMemoryCache } from 'apollo-cache-inmemory';
@@ -13,15 +13,29 @@ export function getProvider() {
 
   const httpLink = new HttpLink({
     uri: serviceUrl(),
-    headers: {
-      Authorization: localStorage.getItem('token') || null,
-    },
+  });
+
+  // Read the token per-request instead of once at startup, so a login/join
+  // that happens after the app boots is picked up without a page reload.
+  const authLink = new ApolloLink((operation, forward) => {
+    operation.setContext({
+      headers: {
+        Authorization: localStorage.getItem('token') || null,
+      },
+    });
+    return forward(operation);
   });
 
   const wsLink = new WebSocketLink({
     uri: serviceUrl().replace('http', 'ws'),
     options: {
+      // Wait for the first subscription before connecting, so the token from
+      // joining a party is available when connectionParams is evaluated.
+      lazy: true,
       reconnect: true,
+      connectionParams: () => ({
+        Authorization: localStorage.getItem('token') || null,
+      }),
     },
   });
 
@@ -34,7 +48,7 @@ export function getProvider() {
       );
     },
     wsLink,
-    httpLink
+    authLink.concat(httpLink)
   );
 
   const apolloClient = new ApolloClient({

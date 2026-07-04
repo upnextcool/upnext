@@ -25,13 +25,16 @@ export class SpotifyRefreshJob {
   )
   async refreshTokens(): Promise<void> {
     const parties = await this._partyService.getAll();
-    const partiesToBeRefreshed = parties.filter(p => dayjs(p.spotifyAccount.tokenExpire).diff(
+    const partiesToBeRefreshed = parties.filter(p => p.spotifyAccount && dayjs(p.spotifyAccount.tokenExpire).diff(
       dayjs(), 'minutes'
     ) <= REFRESH_MINUTE_RANGE);
     if (partiesToBeRefreshed.length > 0) {
       log.info(`Refreshing ${partiesToBeRefreshed.length} parties.`);
-      await Promise.all(partiesToBeRefreshed.map(async party =>
+      const results = await Promise.allSettled(partiesToBeRefreshed.map(async party =>
         this._spotifyAccountService.refreshTokenFor(party)));
+      results
+        .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+        .forEach(result => log.error(`Token refresh failed: ${result.reason}`));
     }
   }
 }

@@ -4,7 +4,7 @@
 
 import { Member, User } from '../models';
 import { UserService } from '../services';
-import { Arg, FieldResolver, Mutation, Query, Resolver, ResolverInterface, Root } from 'type-graphql';
+import { Arg, FieldResolver, Mutation, Resolver, ResolverInterface, Root } from 'type-graphql';
 import { Service } from 'typedi';
 
 @Service()
@@ -12,11 +12,6 @@ import { Service } from 'typedi';
 export class UserResolver implements ResolverInterface<User> {
 
   constructor(private readonly _userService: UserService) {}
-
-  @Query(() => [ User ])
-  async users(): Promise<Array<User>> {
-    return this._userService.getAll();
-  }
 
   @FieldResolver(() => Member)
   async member(@Root() user: User): Promise<Member> {

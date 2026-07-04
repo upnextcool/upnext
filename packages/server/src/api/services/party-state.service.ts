@@ -57,6 +57,17 @@ export class PartyStateService {
     return x ? x.isQueued:false;
   }
 
+  // Drop in-memory state for parties that no longer exist, so the maps
+  // don't grow without bound as parties come and go.
+  pruneExcept(activePartyIds: Set<string>): void {
+    [ ...this._partySpotifyStates.keys() ]
+      .filter((id) => !activePartyIds.has(id))
+      .forEach((id) => this._partySpotifyStates.delete(id));
+    [ ...this._nextSongQueue.keys() ]
+      .filter((id) => !activePartyIds.has(id))
+      .forEach((id) => this._nextSongQueue.delete(id));
+  }
+
   updateState(
     previousState: PartyState,
     newState: Partial<PartyState>

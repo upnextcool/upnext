@@ -15,11 +15,11 @@ export class VoteResolver implements ResolverInterface<Vote> {
 
   @FieldResolver(() => Member)
   async member (@Root() vote: Vote): Promise<Member> {
-    return this._voteService.getMemberFor(vote);
+    return vote.member ?? this._voteService.getMemberFor(vote);
   }
 
   @FieldResolver(() => PlaylistEntry)
   async playlistEntry (@Root() vote: Vote): Promise<PlaylistEntry> {
-    return this._voteService.getPlaylistEntryFor(vote);
+    return vote.playlistEntry ?? this._voteService.getPlaylistEntryFor(vote);
   }
 }

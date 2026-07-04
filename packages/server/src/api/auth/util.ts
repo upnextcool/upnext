@@ -28,23 +28,21 @@ export const validateTokenAndGetState: (token: string) => Promise<StateFromToken
     const tokenService: TokenService = Container.get(TokenService);
     const memberService: MemberService = Container.get(MemberService);
     const { memberId } = tokenService.verify<AccessToken>(token);
-    const member = await memberService.getById(memberId);
-    const user = await memberService.getUserFor(member);
-    const party = await memberService.getPartyFor(member);
+    const member = await memberService.getByIdWithUserAndParty(memberId);
     if (!member) {
-      throw new Error('Invalid token');
+      return invalidState;
     }
-    return member ? {
+    return {
       member: plainToClass(
         Member, member
       ),
       party: plainToClass(
-        Party, party
+        Party, member.party
       ),
       user: plainToClass(
-        User, user
+        User, member.user
       ),
-    } : invalidState;
+    };
   } catch {
     return invalidState;
   }
