@@ -41,19 +41,12 @@ export class Request {
     private readonly bodyParameters: Record<string, unknown>;
 
     constructor(builder: RequestBuilder) {
-      // eslint-disable-next-line immutable/no-mutation
       this.method = builder.method;
-      // eslint-disable-next-line immutable/no-mutation
       this.host = builder.host;
-      // eslint-disable-next-line immutable/no-mutation
       this.scheme = builder.scheme;
-      // eslint-disable-next-line immutable/no-mutation
       this.path = builder.path;
-      // eslint-disable-next-line immutable/no-mutation
       this.headers = builder.headers;
-      // eslint-disable-next-line immutable/no-mutation
       this.queryParameters = builder.queryParameters;
-      // eslint-disable-next-line immutable/no-mutation
       this.bodyParameters = builder.bodyParameters;
     }
 
@@ -61,17 +54,42 @@ export class Request {
       try {
         return (await this.makeAxios()).data as T;
       } catch (error) {
-        const spotifyError = error?.response?.data?.error;
-        if (spotifyError) {
-          throw new GenericError(
-            spotifyError.status, spotifyError.message, error.stack
-          );
-        }
-        // Network failures and timeouts have no Spotify error payload to unwrap.
-        throw new GenericError(
-          error?.response?.status ?? 503, error?.message ?? 'Spotify request failed', error?.stack
-        );
+        throw this.toGenericError(error);
       }
+    }
+
+    // Spotify errors arrive in several shapes: the Web API JSON envelope
+    // ({ error: { status, message } }), the accounts endpoint's OAuth shape
+    // ({ error, error_description }), and for some 403s (e.g. a user not
+    // allow-listed on a development-mode app) a plain-text body. Surface
+    // whichever detail exists plus the endpoint, instead of axios's generic
+    // "Request failed with status code N".
+    private toGenericError(error): GenericError {
+      const status = error?.response?.status;
+      const detail = Request.extractErrorDetail(error?.response?.data)
+        ?? error?.message
+        ?? 'Spotify request failed';
+      return new GenericError(
+        status ?? 503,
+        `${HttpMethods[this.method]} ${this.getURI()} failed: ${detail}`,
+        error?.stack
+      );
+    }
+
+    private static extractErrorDetail(data): string | undefined {
+      if (!data) {
+        return undefined;
+      }
+      if (typeof data === 'string') {
+        const MAX_DETAIL_LENGTH = 300;
+        return data.slice(0, MAX_DETAIL_LENGTH) || undefined;
+      }
+      if (typeof data.error === 'string') {
+        return data.error_description
+          ? `${data.error}: ${data.error_description}`
+          : data.error;
+      }
+      return data.error?.message;
     }
 
     private getURI(): string {
