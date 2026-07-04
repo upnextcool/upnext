@@ -20,21 +20,31 @@ export class SpotifyRefreshJob {
   @Inject()
   private readonly _partyService: PartyService;
 
+  private _running = false;
+
   @Cron(
     'refresh-tokens', '* * * * *'
   )
   async refreshTokens(): Promise<void> {
-    const parties = await this._partyService.getAll();
-    const partiesToBeRefreshed = parties.filter(p => p.spotifyAccount && dayjs(p.spotifyAccount.tokenExpire).diff(
-      dayjs(), 'minutes'
-    ) <= REFRESH_MINUTE_RANGE);
-    if (partiesToBeRefreshed.length > 0) {
-      log.info(`Refreshing ${partiesToBeRefreshed.length} parties.`);
-      const results = await Promise.allSettled(partiesToBeRefreshed.map(async party =>
-        this._spotifyAccountService.refreshTokenFor(party)));
-      results
-        .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
-        .forEach(result => log.error(`Token refresh failed: ${result.reason}`));
+    if (this._running) {
+      return;
+    }
+    this._running = true;
+    try {
+      const parties = await this._partyService.getAll();
+      const partiesToBeRefreshed = parties.filter(p => p.spotifyAccount && dayjs(p.spotifyAccount.tokenExpire).diff(
+        dayjs(), 'minutes'
+      ) <= REFRESH_MINUTE_RANGE);
+      if (partiesToBeRefreshed.length > 0) {
+        log.info(`Refreshing ${partiesToBeRefreshed.length} parties.`);
+        const results = await Promise.allSettled(partiesToBeRefreshed.map(async party =>
+          this._spotifyAccountService.refreshTokenFor(party)));
+        results
+          .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+          .forEach(result => log.error(`Token refresh failed: ${result.reason}`));
+      }
+    } finally {
+      this._running = false;
     }
   }
 }

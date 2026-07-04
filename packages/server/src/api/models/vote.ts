@@ -6,7 +6,7 @@ import { Member, PlaylistEntry } from './';
 import { VoteTypeEnum } from '../types';
 import { IsEnum, IsObject, IsUUID, ValidateNested } from 'class-validator';
 import { Field, ObjectType } from 'type-graphql';
-import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, Index, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 
 @ObjectType({
   description: 'A vote on a playlist entry',
@@ -20,6 +20,7 @@ export class Vote {
 
   @IsObject()
   @ValidateNested()
+  @Index()
   @ManyToOne(
     () => Member, member => member.votes, { onDelete: 'CASCADE' }
   )
@@ -39,6 +40,7 @@ export class Vote {
 
   @IsObject()
   @ValidateNested()
+  @Index()
   @ManyToOne(
     () => PlaylistEntry, playlistEntry => playlistEntry.votes, { onDelete: 'CASCADE' }
   )

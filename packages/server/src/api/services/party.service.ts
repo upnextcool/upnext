@@ -3,13 +3,16 @@
  */
 
 import { Member, Party, PlaylistEntry, PlaylistHistory, SpotifyAccount } from '../models';
-import { PartyRepository } from '../repositories';
 import { Service } from 'typedi';
-import { OrmRepository } from 'typeorm-typedi-extensions';
+import { DataSource, Repository } from 'typeorm';
 
 @Service()
 export class PartyService {
-  constructor(@OrmRepository() private readonly _partyRepository: PartyRepository) {}
+  private readonly _partyRepository: Repository<Party>;
+
+  constructor(dataSource: DataSource) {
+    this._partyRepository = dataSource.getRepository(Party);
+  }
 
   async getAll(): Promise<Array<Party>> {
     return this._partyRepository.find({

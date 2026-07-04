@@ -3,14 +3,17 @@
  */
 
 import { Member, Party, PlaylistEntry, Vote } from '../models';
-import { PlaylistEntryRepository } from '../repositories';
 import { Service } from 'typedi';
-import { OrmRepository } from 'typeorm-typedi-extensions';
+import { DataSource, Repository } from 'typeorm';
 import { Topic, UpNextPubSubEngine } from '../pubsub/pubsub';
 
 @Service()
 export class PlaylistEntryService {
-  constructor(@OrmRepository() private readonly _playlistEntryRepository: PlaylistEntryRepository) {}
+  private readonly _playlistEntryRepository: Repository<PlaylistEntry>;
+
+  constructor(dataSource: DataSource) {
+    this._playlistEntryRepository = dataSource.getRepository(PlaylistEntry);
+  }
 
   async getAll(): Promise<Array<PlaylistEntry>> {
     return this._playlistEntryRepository.find();
@@ -53,7 +56,7 @@ export class PlaylistEntryService {
   }
 
   async remove(nextSong: PlaylistEntry, party: Party): Promise<void> {
-    await UpNextPubSubEngine.instance.engine.publish(Topic.QUEUE_REMOVE_SONG, {
+    UpNextPubSubEngine.instance.engine.publish(Topic.QUEUE_REMOVE_SONG, {
       entry: nextSong,
       partyId: party.id,
     });

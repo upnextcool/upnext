@@ -2,8 +2,7 @@
  * Copyright (c) 2021, Ethan Elliott
  */
 
-import { PartyStateService } from '../services/party-state.service';
-import { PartyService, UpNextService } from '../services';
+import { PartyService, PartyStateService, UpNextService } from '../services';
 import { Cron, CronController } from 'cron-decorators';
 import { Inject } from 'typedi';
 
@@ -18,8 +17,10 @@ export class PartyStateJob {
   @Inject()
   private readonly _partyStateService: PartyStateService;
 
-  // Parties whose previous tick hasn't finished yet. A slow Spotify response
-  // must not let ticks pile up on the same party.
+  // Guards against overlapping polls: this job fires every second, but a slow
+  // Spotify response (more likely under load) can make a party's poll take
+  // longer than that. Tracking in-flight parties individually means one slow
+  // party skips its next tick without stalling polling for the others.
   private readonly _inFlight = new Set<string>();
 
   @Cron(
@@ -27,8 +28,10 @@ export class PartyStateJob {
   )
   async updatePartyState(): Promise<void> {
     const parties = await this._partyService.getAll();
-    await Promise.allSettled(parties
-      .filter(party => party.spotifyAccount && !this._inFlight.has(party.id))
+    const activeParties = parties.filter(p => p.spotifyAccount);
+    this._partyStateService.pruneExcept(new Set(activeParties.map(p => p.id)));
+    await Promise.allSettled(activeParties
+      .filter(party => !this._inFlight.has(party.id))
       .map(async party => {
         this._inFlight.add(party.id);
         try {
@@ -37,6 +40,5 @@ export class PartyStateJob {
           this._inFlight.delete(party.id);
         }
       }));
-    this._partyStateService.pruneExcept(new Set(parties.map(party => party.id)));
   }
 }

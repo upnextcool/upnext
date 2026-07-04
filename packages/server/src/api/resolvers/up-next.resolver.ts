@@ -14,30 +14,28 @@ import {
   Track
 } from '../spotify';
 import { Context } from '../types';
-import { PlayerEventPayload, QueueEventPayload, Topic } from '../pubsub/pubsub';
+import { PlayerEventPayload, QueueEventPayload, Topic, UpNextPubSubEngine } from '../pubsub/pubsub';
 import GraphQLJSON from 'graphql-type-json';
 import {
   Arg,
   Authorized,
   Ctx,
   Mutation,
-  PubSub,
   Query,
   Resolver,
-  ResolverFilterData,
   Subscription,
-  PubSubEngine,
+  SubscriptionHandlerData,
   Root
 } from 'type-graphql';
 import { Service } from 'typedi';
 
 // Only deliver events to subscribers that belong to the party the event
-// happened in. The subscription context comes from the websocket onConnect
-// handler, which validates the member token.
+// happened in. The subscription context is built by wsContext at websocket
+// connect time, which validates the member token.
 const samePartyFilter = ({
   payload,
   context,
-}: ResolverFilterData<{ partyId: string }, unknown, Context>): boolean =>
+}: SubscriptionHandlerData<{ partyId: string }, Record<string, unknown>, Context>): boolean =>
   !!context?.party && payload.partyId === context.party.id;
 
 @Service()
@@ -202,7 +200,6 @@ export class UpNextResolver {
   async addToQueue(
     @Ctx() context: Context,
     @Arg('songId') songId: string,
-    @PubSub() pubSub: PubSubEngine
   ): Promise<string> {
     const entry = await this._upNextService.addToPlaylist(
       context.party,
@@ -210,7 +207,7 @@ export class UpNextResolver {
       songId
     );
 
-    await pubSub.publish(Topic.QUEUE_NEW_SONG, {
+    UpNextPubSubEngine.instance.engine.publish(Topic.QUEUE_NEW_SONG, {
       entry,
       partyId: context.party.id,
     });
@@ -223,13 +220,12 @@ export class UpNextResolver {
   async upvote(
     @Ctx() context: Context,
     @Arg('entryId') entryId: string,
-    @PubSub() pubSub: PubSubEngine
   ): Promise<PlaylistEntry> {
     const entry = await this._upNextService.upvote(
       context.member,
       entryId
     );
-    await pubSub.publish(Topic.QUEUE_UPVOTE, {
+    UpNextPubSubEngine.instance.engine.publish(Topic.QUEUE_UPVOTE, {
       entry,
       partyId: context.party.id,
     });
@@ -242,14 +238,13 @@ export class UpNextResolver {
   async downvote(
     @Ctx() context: Context,
     @Arg('entryId') entryId: string,
-    @PubSub() pubSub: PubSubEngine
   ): Promise<PlaylistEntry> {
     const entry = await this._upNextService.downvote(
       context.member,
       entryId
     );
 
-    await pubSub.publish(Topic.QUEUE_DOWNVOTE, {
+    UpNextPubSubEngine.instance.engine.publish(Topic.QUEUE_DOWNVOTE, {
       entry,
       partyId: context.party.id,
     });

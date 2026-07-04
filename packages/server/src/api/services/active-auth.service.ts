@@ -3,19 +3,21 @@
  */
 
 import { ActiveAuth, Party, User } from '../models';
-import { ActiveAuthRepository } from '../repositories';
 import { Service } from 'typedi';
-import { OrmRepository } from 'typeorm-typedi-extensions';
+import { DataSource, Repository } from 'typeorm';
 
 @Service()
 export class ActiveAuthService {
+  private readonly _activeAuthRepository: Repository<ActiveAuth>;
 
-  constructor(@OrmRepository() private readonly _activeAuthRepository: ActiveAuthRepository) {}
+  constructor(dataSource: DataSource) {
+    this._activeAuthRepository = dataSource.getRepository(ActiveAuth);
+  }
 
   async getByUser(user: User): Promise<ActiveAuth> {
     return this._activeAuthRepository.findOne({
       where: {
-        user
+        user: { id: user.id }
       }
     });
   }
