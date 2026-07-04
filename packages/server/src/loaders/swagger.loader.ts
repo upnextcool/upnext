@@ -29,7 +29,6 @@ export const SwaggerLoader: MicroframeworkLoader = (settings: MicroframeworkSett
         },
         info: {
           description: environment.app.description,
-          name: environment.app.name,
           title: environment.app.name,
           version: environment.app.version,
         },

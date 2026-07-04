@@ -5,7 +5,7 @@
 import { Member, Party, User } from '../models';
 import { MemberService, TokenService } from '../services';
 import { AccessToken } from '../types';
-import { plainToClass } from 'class-transformer';
+import { plainToInstance } from 'class-transformer';
 import { Container } from 'typedi';
 
 const invalidState = {
@@ -33,13 +33,13 @@ export const validateTokenAndGetState: (token: string) => Promise<StateFromToken
       return invalidState;
     }
     return {
-      member: plainToClass(
+      member: plainToInstance(
         Member, member
       ),
-      party: plainToClass(
+      party: plainToInstance(
         Party, member.party
       ),
-      user: plainToClass(
+      user: plainToInstance(
         User, member.user
       ),
     };
