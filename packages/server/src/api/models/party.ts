@@ -6,7 +6,7 @@ import { ActiveAuth, Member, PlaylistEntry, PlaylistHistory, SpotifyAccount } fr
 import { Type } from 'class-transformer';
 import { IsArray, IsDate, IsNotEmpty, IsObject, IsString, IsUUID, ValidateNested } from 'class-validator';
 import { Field, ObjectType } from 'type-graphql';
-import { Column, CreateDateColumn, Entity, OneToMany, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, Index, OneToMany, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
 
 @ObjectType({
   description: 'The party!',
@@ -26,6 +26,7 @@ export class Party {
 
   @IsString()
   @IsNotEmpty()
+  @Index()
   @Column()
   @Field({ description: 'The 4-digit code of the party' })
   code: string;

@@ -1,5 +1,14 @@
-import { PubSub } from 'apollo-server-express';
+import { PubSub } from 'graphql-subscriptions';
 
+/**
+ * type-graphql 2 dropped its bundled PubSub and the `@PubSub()` injector, and
+ * instead consumes any object matching its `{ publish, subscribe }` interface.
+ * This singleton adapts graphql-subscriptions' in-memory PubSub to that shape.
+ *
+ * `engine` returns the adapter itself so existing call sites
+ * (`UpNextPubSubEngine.instance.engine.publish(...)`) keep working and the same
+ * instance is handed to `buildSchema({ pubSub })`.
+ */
 export class UpNextPubSubEngine {
   private static _instance: UpNextPubSubEngine | null = null;
 
@@ -10,13 +19,19 @@ export class UpNextPubSubEngine {
     return UpNextPubSubEngine._instance;
   }
 
-  private readonly _engine: PubSub;
+  private readonly _pubSub = new PubSub();
 
-  constructor() {
-    this._engine = new PubSub();
+  publish(routingKey: string, payload: unknown): void {
+    void this._pubSub.publish(routingKey, payload);
   }
 
-  get engine() {
-    return this._engine;
+  subscribe(routingKey: string): AsyncIterable<unknown> {
+    // graphql-subscriptions' iterator is an async-iterable at runtime (it
+    // implements Symbol.asyncIterator) even though it is typed as AsyncIterator.
+    return this._pubSub.asyncIterator(routingKey) as unknown as AsyncIterable<unknown>;
+  }
+
+  get engine(): UpNextPubSubEngine {
+    return this;
   }
 }

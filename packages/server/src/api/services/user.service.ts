@@ -3,13 +3,16 @@
  */
 
 import { Member, User } from '../models';
-import { UserRepository } from '../repositories';
 import { Service } from 'typedi';
-import { OrmRepository } from 'typeorm-typedi-extensions';
+import { DataSource, Repository } from 'typeorm';
 
 @Service()
 export class UserService {
-  constructor(@OrmRepository() private readonly _userRepository: UserRepository) {}
+  private readonly _userRepository: Repository<User>;
+
+  constructor(dataSource: DataSource) {
+    this._userRepository = dataSource.getRepository(User);
+  }
 
   async getAll(): Promise<Array<User>> {
     return this._userRepository.find();
@@ -26,7 +29,7 @@ export class UserService {
   async getByMember(member: Member): Promise<User> {
     return this._userRepository.findOne({
       where: {
-        member
+        member: { id: member.id }
       }
     });
   }

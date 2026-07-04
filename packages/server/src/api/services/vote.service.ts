@@ -3,13 +3,16 @@
  */
 
 import { Member, PlaylistEntry, Vote } from '../models';
-import { VoteRepository } from '../repositories';
 import { Service } from 'typedi';
-import { OrmRepository } from 'typeorm-typedi-extensions';
+import { DataSource, Repository } from 'typeorm';
 
 @Service()
 export class VoteService {
-  constructor(@OrmRepository() private readonly _voteRepository: VoteRepository) {}
+  private readonly _voteRepository: Repository<Vote>;
+
+  constructor(dataSource: DataSource) {
+    this._voteRepository = dataSource.getRepository(Vote);
+  }
 
   async getAll(): Promise<Array<Vote>> {
     return this._voteRepository.find();

@@ -3,14 +3,17 @@
  */
 
 import { Member, Party, PlaylistEntry, Vote } from '../models';
-import { PlaylistEntryRepository } from '../repositories';
 import { Service } from 'typedi';
-import { OrmRepository } from 'typeorm-typedi-extensions';
+import { DataSource, Repository } from 'typeorm';
 import {UpNextPubSubEngine} from "../pubsub/pubsub";
 
 @Service()
 export class PlaylistEntryService {
-  constructor(@OrmRepository() private readonly _playlistEntryRepository: PlaylistEntryRepository) {}
+  private readonly _playlistEntryRepository: Repository<PlaylistEntry>;
+
+  constructor(dataSource: DataSource) {
+    this._playlistEntryRepository = dataSource.getRepository(PlaylistEntry);
+  }
 
   async getAll(): Promise<Array<PlaylistEntry>> {
     return this._playlistEntryRepository.find();

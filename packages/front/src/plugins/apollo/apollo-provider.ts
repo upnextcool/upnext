@@ -1,11 +1,9 @@
 import router from '../../router';
 import VueApollo from 'vue-apollo';
-import ApolloClient from 'apollo-client';
-import { HttpLink } from 'apollo-link-http';
-import { split } from 'apollo-link';
-import { WebSocketLink } from 'apollo-link-ws';
-import { getMainDefinition } from 'apollo-utilities';
-import { InMemoryCache } from 'apollo-cache-inmemory';
+import { ApolloClient, HttpLink, InMemoryCache, split } from '@apollo/client/core';
+import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
+import { getMainDefinition } from '@apollo/client/utilities';
+import { createClient } from 'graphql-ws';
 import {Environment} from "../../environment";
 
 export function getProvider() {
@@ -14,16 +12,20 @@ export function getProvider() {
   const httpLink = new HttpLink({
     uri: serviceUrl(),
     headers: {
-      Authorization: localStorage.getItem('token') || null,
+      Authorization: localStorage.getItem('token') || '',
     },
   });
 
-  const wsLink = new WebSocketLink({
-    uri: serviceUrl().replace('http', 'ws'),
-    options: {
-      reconnect: true,
-    },
-  });
+  // Subscriptions over the modern graphql-ws protocol to match the server.
+  // The auth token is sent as a connection param the server reads on connect.
+  const wsLink = new GraphQLWsLink(
+    createClient({
+      connectionParams: () => ({
+        Authorization: localStorage.getItem('token') || '',
+      }),
+      url: serviceUrl().replace('http', 'ws'),
+    })
+  );
 
   const link = split(
     ({ query }) => {
@@ -38,8 +40,8 @@ export function getProvider() {
   );
 
   const apolloClient = new ApolloClient({
-    link,
     cache: new InMemoryCache(),
+    link,
   });
 
   const apolloProvider = new VueApollo({
@@ -58,7 +60,7 @@ export function getProvider() {
   });
 
   return {
-    apolloProvider,
     apolloClient,
+    apolloProvider,
   };
 }
