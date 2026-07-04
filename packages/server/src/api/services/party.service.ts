@@ -20,6 +20,25 @@ export class PartyService {
     });
   }
 
+  // Loads the relations the cleanup job needs to judge whether a party has
+  // seen any activity (joins, plays, queue adds).
+  async getAllWithActivity(): Promise<Array<Party>> {
+    return this._partyRepository.find({
+      relations: [
+        'history',
+        'members',
+        'playlist'
+      ]
+    });
+  }
+
+  // Plain SQL delete; every child relation declares onDelete CASCADE, so the
+  // database removes members, playlist entries, votes, history, the Spotify
+  // account link, and any active auth along with the party row.
+  async removeById(id: string): Promise<void> {
+    await this._partyRepository.delete(id);
+  }
+
   async getById(id: string): Promise<Party> {
     return this._partyRepository.findOne({
       where: {

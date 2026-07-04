@@ -2,8 +2,6 @@
  * Copyright (c) 2021, Ethan Elliott
  */
 
-import querystring from 'querystring';
-
 import { RequestBuilder } from '../requests';
 import { AuthResponse, HttpMethods, RefreshResponse, SCOPES } from '../types';
 
@@ -18,13 +16,13 @@ export class Auth {
     scope: string = Auth.ALL_SCOPES
   ): string {
     return `https://accounts.spotify.com/authorize?${
-      querystring.stringify({
+      new URLSearchParams({
         client_id: clientID,
         redirect_uri: redirectURI,
         response_type: 'code',
         scope: scope,
         state: state
-      })
+      }).toString()
     }`;
   }
 
